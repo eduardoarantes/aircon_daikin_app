@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.example.airconapp-mergeDebugResources-52:/values-v16/values-v16.xml",
+            "map": [
+                {
+                    "source": "/Users/eduardosapia.ai/.gradle/caches/transforms-4/03cce8a298ed03073b0b94bc2c9b0014/transformed/core-1.12.0/res/values-v16/values-v16.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "65",
+                        "endOffsets": "116"
+                    }
+                }
+            ]
+        }
+    ]
+}
