@@ -8,6 +8,8 @@ import io.ktor.client.request.url
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.serialization.Serializable
+import java.net.URLDecoder
+import java.net.URLEncoder
 
 // Data Models (DTOs) based on swagger.yaml
 
@@ -22,17 +24,22 @@ data class ControlInfo(
 )
 
 @Serializable
-data class ZoneStatus(
-    val zone_onoff: String,
-    val zone_name: String
+data class Zone(
+    val name: String,
+    val isOn: Boolean
+)
+
+// ZoneStatus will now hold a list of Zone objects
+data class ZoneStatusResponse(
+    val zones: List<Zone>
 )
 
 // API Service Interface
 interface AirconApiService {
     suspend fun getControlInfo(): ControlInfo
     suspend fun setControlInfo(controlInfo: ControlInfo): String
-    suspend fun getZoneSetting(): ZoneStatus
-    suspend fun setZoneSetting(zoneStatus: ZoneStatus): String
+    suspend fun getZoneSetting(): ZoneStatusResponse
+    suspend fun setZoneSetting(zones: List<Zone>): String
 }
 
 // API Service Implementation
@@ -43,7 +50,6 @@ class AirconApiServiceImpl(private val client: HttpClient, private val baseUrl: 
             url("$baseUrl/skyfi/aircon/get_control_info")
         }
         val rawResponse: String = response.body()
-        // Parse the raw string response into ControlInfo
         return parseControlInfoString(rawResponse)
     }
 
@@ -56,17 +62,27 @@ class AirconApiServiceImpl(private val client: HttpClient, private val baseUrl: 
         return response.body()
     }
 
-    override suspend fun getZoneSetting(): ZoneStatus {
+    override suspend fun getZoneSetting(): ZoneStatusResponse {
         val response = client.get {
             url("$baseUrl/skyfi/aircon/get_zone_setting")
         }
         val rawResponse: String = response.body()
-        // Parse the raw string response into ZoneStatus
         return parseZoneStatusString(rawResponse)
     }
 
-    override suspend fun setZoneSetting(zoneStatus: ZoneStatus): String {
-        val queryString = "zone_onoff=${zoneStatus.zone_onoff}&zone_name=${zoneStatus.zone_name}"
+    override suspend fun setZoneSetting(zones: List<Zone>): String {
+        val zoneOnOffString = zones.joinToString(";") { if (it.isOn) "1" else "0" }
+        val zoneNameString = zones.joinToString(";") { it.name }
+
+        // URL-encode the entire strings before putting them in the query
+        var encodedZoneOnOffString = URLEncoder.encode(zoneOnOffString, "UTF-8")
+        var encodedZoneNameString = URLEncoder.encode(zoneNameString, "UTF-8")
+
+        // Explicitly replace '+' with '%20' for spaces, if the API expects it
+        encodedZoneOnOffString = encodedZoneOnOffString.replace("+", "%20")
+        encodedZoneNameString = encodedZoneNameString.replace("+", "%20")
+
+        val queryString = "zone_onoff=$encodedZoneOnOffString&zone_name=$encodedZoneNameString"
         val response = client.post {
             url("$baseUrl/skyfi/aircon/set_zone_setting?$queryString")
             contentType(ContentType.Text.Plain)
@@ -90,15 +106,31 @@ class AirconApiServiceImpl(private val client: HttpClient, private val baseUrl: 
         )
     }
 
-    // Helper function to parse zone status string
-    private fun parseZoneStatusString(input: String): ZoneStatus {
+    // Helper function to parse zone status string into a list of Zone objects
+    private fun parseZoneStatusString(input: String): ZoneStatusResponse {
         val parts = input.split(",").associate { part ->
             val (key, value) = part.split("=")
             key to value
         }
-        return ZoneStatus(
-            zone_onoff = parts["zone_onoff"] ?: "",
-            zone_name = parts["zone_name"] ?: ""
-        )
+
+        val encodedZoneOnOffString = parts["zone_onoff"] ?: ""
+        val encodedZoneNameString = parts["zone_name"] ?: ""
+
+        // URL-decode the strings
+        val zoneOnOffString = URLDecoder.decode(encodedZoneOnOffString, "UTF-8")
+        var zoneNameString = URLDecoder.decode(encodedZoneNameString, "UTF-8")
+
+        // Replace '+' with spaces, as URLDecoder might not always handle it for all contexts
+        zoneNameString = zoneNameString.replace("+", " ")
+
+        val zoneOnOffList = zoneOnOffString.split(";")
+        val zoneNameList = zoneNameString.split(";")
+
+        val zones = zoneNameList.indices.map { index ->
+            val name = zoneNameList.getOrElse(index) { "Zone ${index + 1}" }
+            val isOn = zoneOnOffList.getOrElse(index) { "0" } == "1"
+            Zone(name = name, isOn = isOn)
+        }
+        return ZoneStatusResponse(zones)
     }
 }

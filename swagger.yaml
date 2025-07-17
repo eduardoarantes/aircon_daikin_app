@@ -1,0 +1,76 @@
+openapi: 3.0.0
+info:
+  title: Daikin Aircon API
+  version: 1.0.0
+paths:
+  /skyfi/aircon/get_control_info:
+    get:
+      summary: Get air conditioner control info
+      responses:
+        '200':
+          description: A string representing the control info
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "ret=OK,pow=1,mode=2,stemp=24,f_rate=5,f_dir=0"
+  /skyfi/aircon/set_control_info:
+    post:
+      summary: Set air conditioner control info
+      parameters:
+        - name: pow
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: mode
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: stemp
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: f_rate
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: f_dir
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+  /skyfi/aircon/get_zone_setting:
+    get:
+      summary: Get zone settings
+      responses:
+        '200':
+          description: A string representing the zone settings
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "zone_onoff=1;0;0;0;0;0;0;0,zone_name=Zone1;Zone2;Zone3;Zone4;Zone5;Zone6;Zone7;Zone8"
+  /skyfi/aircon/set_zone_setting:
+    post:
+      summary: Set zone settings
+      parameters:
+        - name: zone_onoff
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: zone_name
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success

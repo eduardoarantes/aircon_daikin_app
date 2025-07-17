@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.airconapp-mergeDebugResources-52:/values-v23/values-v23.xml",
+            "outputFile": "com.example.airconapp-mergeDebugResources-57:/values-v23/values-v23.xml",
             "map": [
                 {
-                    "source": "/Users/eduardosapia.ai/.gradle/caches/transforms-4/82363f1e41f60196b49bcda406f824f4/transformed/work-runtime-2.9.0/res/values-v23/values-v23.xml",
+                    "source": "/Users/eduardosapia.ai/.gradle/caches/8.14.3/transforms/95c1688dc05535151a3ece44f1cd9586/transformed/work-runtime-2.9.0/res/values-v23/values-v23.xml",
                     "from": {
                         "startLines": "2,3",
                         "startColumns": "4,4",

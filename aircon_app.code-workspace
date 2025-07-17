@@ -2,6 +2,9 @@
 	"folders": [
 		{
 			"path": "."
+		},
+		{
+			"path": "../daikin_remote_arduino"
 		}
 	],
 	"settings": {}

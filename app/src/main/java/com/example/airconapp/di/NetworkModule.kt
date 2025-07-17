@@ -1,7 +1,11 @@
 package com.example.airconapp.di
 
-import com.example.airconapp.data.AirconApiServiceImpl
+import android.content.Context
 import com.example.airconapp.data.AirconApiService
+import com.example.airconapp.data.AirconApiServiceImpl
+import com.example.airconapp.data.mock.MockAirconApiService
+import com.example.airconapp.data.db.AppDatabase
+import com.example.airconapp.data.repo.SchedulerRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -10,7 +14,8 @@ import kotlinx.serialization.json.Json
 
 object NetworkModule {
 
-    private const val BASE_URL = "http://192.168.1.6" // TODO: Replace with your actual Daikin API base URL
+    private const val BASE_URL = "http://192.168.1.6" // Your aircon IP
+    private const val USE_MOCK_API = true // Set to true to use mock API, false for real API
 
     val httpClient: HttpClient by lazy {
         HttpClient(CIO) {
@@ -21,6 +26,24 @@ object NetworkModule {
     }
 
     val airconApiService: AirconApiService by lazy {
-        AirconApiServiceImpl(httpClient, BASE_URL)
+        if (USE_MOCK_API) {
+            MockAirconApiService()
+        } else {
+            AirconApiServiceImpl(httpClient, BASE_URL)
+        }
+    }
+
+    private lateinit var applicationContext: Context
+
+    fun initialize(context: Context) {
+        applicationContext = context.applicationContext
+    }
+
+    val database: AppDatabase by lazy {
+        AppDatabase.getDatabase(applicationContext)
+    }
+
+    val schedulerRepository: SchedulerRepository by lazy {
+        SchedulerRepository(database.schedulerProfileDao())
     }
 }

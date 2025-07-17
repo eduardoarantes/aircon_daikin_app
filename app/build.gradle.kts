@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinAndroid)
+    kotlin("kapt")
 }
 
 android {
@@ -53,16 +54,16 @@ dependencies {
 
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)
-    implementation(libs.activity.compose)
     implementation(libs.lifecycle.viewmodel.compose)
+    implementation(libs.activity.compose)
     implementation(platform(libs.compose.bom))
     implementation(libs.ui)
     implementation(libs.ui.graphics)
     implementation(libs.ui.tooling)
     implementation(libs.ui.tooling.preview)
     implementation(libs.material3)
-    implementation("androidx.compose.material:material-icons-extended")
-    implementation("androidx.compose.compiler:compiler:1.5.8")
+    implementation(libs.material.icons.extended)
+    implementation(libs.material.icons.core)
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
@@ -71,7 +72,8 @@ dependencies {
 
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
-    annotationProcessor(libs.room.compiler)
+    kapt(libs.room.compiler)
+    implementation("com.google.code.gson:gson:2.10.1")
 
     implementation(libs.work.runtime.ktx)
 
@@ -81,4 +83,5 @@ dependencies {
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.ui.test.junit4)
     testImplementation(libs.mockk)
+    implementation("androidx.navigation:navigation-compose:2.7.7")
 }
