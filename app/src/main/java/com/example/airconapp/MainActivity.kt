@@ -59,8 +59,11 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("scheduler_list") {
                             val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.Factory)
+                            val mainViewModel: MainViewModel = viewModel()
+                            val currentZones by mainViewModel.zoneStatus.collectAsState()
                             SchedulerScreen(
                                 viewModel = schedulerViewModel,
+                                availableZones = currentZones ?: emptyList(),
                                 onNavigateToAddEditSchedule = { navController.navigate("add_edit_schedule") },
                                 onNavigateToEditSchedule = { schedule ->
                                     val scheduleJson = Gson().toJson(schedule)
