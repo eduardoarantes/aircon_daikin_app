@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.sp
 import com.example.airconapp.data.db.SchedulerProfile
 import com.example.airconapp.presentation.SchedulerViewModel
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import com.example.airconapp.data.model.Zone
+import com.example.airconapp.data.Zone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
