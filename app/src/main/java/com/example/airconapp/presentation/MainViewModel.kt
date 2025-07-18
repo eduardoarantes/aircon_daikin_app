@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 
 class MainViewModel(private val airconApiService: AirconApiService = NetworkModule.airconApiService) : ViewModel() {
 
@@ -26,18 +28,28 @@ class MainViewModel(private val airconApiService: AirconApiService = NetworkModu
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
+    private var refreshJob: Job? = null
+
     init {
         fetchAirconStatus()
         startPeriodicRefresh()
     }
 
     private fun startPeriodicRefresh() {
-        viewModelScope.launch {
-            while (true) {
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
+            while (isActive) {
                 delay(5000) // Refresh every 5 seconds
-                fetchAirconStatus()
+                if (isActive) {
+                    fetchAirconStatus()
+                }
             }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        refreshJob?.cancel()
     }
 
     fun fetchAirconStatus() {
