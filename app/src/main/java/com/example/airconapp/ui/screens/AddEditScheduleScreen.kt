@@ -49,7 +49,7 @@ fun AddEditScheduleScreen(viewModel: SchedulerViewModel, schedule: SchedulerProf
     var isZoneSelectionError by remember { mutableStateOf(false) }
 
     // Populate fields if editing an existing schedule
-    LaunchedEffect(schedule) {
+    LaunchedEffect(schedule, availableZones) {
         schedule?.let {
             startTime = it.startTime
             endTime = it.endTime ?: ""
