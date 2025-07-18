@@ -35,7 +35,7 @@ import com.example.airconapp.ui.components.ZoneItem
 import java.util.Calendar
 
 @Composable
-fun AddEditScheduleScreen(viewModel: SchedulerViewModel, schedule: SchedulerProfile?, onNavigateBack: () -> Unit) {
+fun AddEditScheduleScreen(viewModel: SchedulerViewModel, schedule: SchedulerProfile?, availableZones: List<Zone>, onNavigateBack: () -> Unit) {
     val context = LocalContext.current
 
     var startTime by remember { mutableStateOf("") }
@@ -57,17 +57,8 @@ fun AddEditScheduleScreen(viewModel: SchedulerViewModel, schedule: SchedulerProf
             selectedTemperature = it.controlInfo.stemp
             selectedFanRate = it.controlInfo.f_rate
             selectedZones = it.zones
-        } ?: run { // If schedule is null (new schedule), initialize zones
-            selectedZones = listOf(
-                Zone("Living Room", false),
-                Zone("Bedroom", false),
-                Zone("Kitchen", false),
-                Zone("Office", false),
-                Zone("Hall", false),
-                Zone("Dining", false),
-                Zone("Guest Main", false),
-                Zone("Edu", false)
-            )
+        } ?: run { // If schedule is null (new schedule), initialize zones from availableZones
+            selectedZones = availableZones.map { it.copy(isOn = false) } // All off by default for new schedule
         }
     }
 

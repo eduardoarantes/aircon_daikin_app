@@ -65,8 +65,7 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToEditSchedule = { schedule ->
                                     val scheduleJson = Gson().toJson(schedule)
                                     navController.navigate("add_edit_schedule_json/$scheduleJson")
-                                },
-                                onNavigateBack = { navController.popBackStack() }
+                                }
                             )
                         }
                         composable(
@@ -76,17 +75,23 @@ class MainActivity : ComponentActivity() {
                             val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.Factory)
                             val scheduleJson = it.arguments?.getString("scheduleJson")
                             val schedule = if (scheduleJson != null) Gson().fromJson(scheduleJson, SchedulerProfile::class.java) else null
+                            val mainViewModel: MainViewModel = viewModel() // Get MainViewModel to access zoneStatus
+                            val currentZones by mainViewModel.zoneStatus.collectAsState()
                             AddEditScheduleScreen(
                                 viewModel = schedulerViewModel,
                                 schedule = schedule,
+                                availableZones = currentZones ?: emptyList(), // Pass available zones
                                 onNavigateBack = { navController.popBackStack() }
                             )
                         }
                         composable("add_edit_schedule") {
                             val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.Factory)
+                            val mainViewModel: MainViewModel = viewModel() // Get MainViewModel to access zoneStatus
+                            val currentZones by mainViewModel.zoneStatus.collectAsState()
                             AddEditScheduleScreen(
                                 viewModel = schedulerViewModel,
                                 schedule = null,
+                                availableZones = currentZones ?: emptyList(), // Pass available zones
                                 onNavigateBack = { navController.popBackStack() }
                             )
                         }

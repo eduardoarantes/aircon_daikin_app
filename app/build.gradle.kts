@@ -64,6 +64,8 @@ dependencies {
     implementation(libs.material3)
     implementation(libs.material.icons.extended)
     implementation(libs.material.icons.core)
+    implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation("androidx.appcompat:appcompat:1.6.1")
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)

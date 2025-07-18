@@ -15,7 +15,7 @@ import kotlinx.serialization.json.Json
 object NetworkModule {
 
     private const val BASE_URL = "http://192.168.1.6" // Your aircon IP
-    private const val USE_MOCK_API = true // Set to true to use mock API, false for real API
+    private const val USE_MOCK_API = false // Set to true to use mock API, false for real API
 
     val httpClient: HttpClient by lazy {
         HttpClient(CIO) {

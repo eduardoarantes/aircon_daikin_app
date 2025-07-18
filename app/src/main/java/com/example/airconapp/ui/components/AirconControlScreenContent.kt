@@ -22,6 +22,8 @@ import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material.icons.outlined.Whatshot
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -103,87 +105,97 @@ fun FullAirconControlUI(
 ) {
     val alpha = if (isPoweredOn) 1f else 0.5f // Dim controls when off
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxSize().alpha(alpha)
-    ) {
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Temperature Display and Controls
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = "${controlInfo.stemp}°C",
-                fontSize = 96.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-        }
-        Slider(
-            value = controlInfo.stemp.toFloatOrNull() ?: 20f,
-            onValueChange = { newValue -> onSetTemperature(newValue.toInt().toString()) },
-            valueRange = 16f..30f,
-            steps = 13, // 16 to 30 inclusive, 14 steps, so 13 divisions
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Mode and Fan Speed Controls
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            ModeSelector(currentMode = controlInfo.mode, onSetMode = onSetMode)
-            FanRateSelector(currentFanRate = controlInfo.f_rate, onSetFanRate = onSetFanRate)
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Zones Display
-        Text("Zones", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.align(Alignment.Start))
-        LazyColumn(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f) // Take remaining space
-                .background(Color.LightGray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                .clip(RoundedCornerShape(8.dp))
-                .border(1.dp, Color.Gray, RoundedCornerShape(8.dp)),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            contentPadding = PaddingValues(8.dp)
+                .fillMaxSize()
+                .alpha(alpha)
+                .padding(top = 16.dp, start = 16.dp, end = 16.dp) // Add padding to avoid overlap with button
         ) {
-            itemsIndexed(zoneStatus) { index, zone ->
-                ZoneItem(zone = zone, onToggle = { isOn -> onSetZonePower(index, isOn) })
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Temperature Display and Controls
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "${controlInfo.stemp}°C",
+                    fontSize = 96.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+            Slider(
+                value = controlInfo.stemp.toFloatOrNull() ?: 20f,
+                onValueChange = { newValue -> onSetTemperature(newValue.toInt().toString()) },
+                valueRange = 16f..30f,
+                steps = 13, // 16 to 30 inclusive, 14 steps, so 13 divisions
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Mode and Fan Speed Controls
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ModeSelector(currentMode = controlInfo.mode, onSetMode = onSetMode)
+                FanRateSelector(currentFanRate = controlInfo.f_rate, onSetFanRate = onSetFanRate)
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Zones Display
+            Text("Zones", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.align(Alignment.Start))
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f) // Take remaining space
+                    .background(Color.LightGray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(8.dp))
+                    .border(1.dp, Color.Gray, RoundedCornerShape(8.dp)),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                contentPadding = PaddingValues(8.dp)
+            ) {
+                itemsIndexed(zoneStatus) { index, zone ->
+                    ZoneItem(zone = zone, onToggle = { isOn -> onSetZonePower(index, isOn) })
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Manage Schedules Button
+            Button(onClick = onNavigateToScheduler) {
+                Text("Manage Schedules")
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Power Button (bottom center)
-        PowerButton(isPoweredOn = isPoweredOn, onPowerToggle = onPowerToggle)
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(onClick = onNavigateToScheduler) {
-            Text("Manage Schedules")
-        }
+        // Power Button (top right corner)
+        PowerButton(
+            isPoweredOn = isPoweredOn,
+            onPowerToggle = onPowerToggle,
+            modifier = Modifier
+                .align(Alignment.TopEnd) // Align to top-right
+                .padding(16.dp) // Add some padding from the edge
+        )
     }
 }
 
 @Composable
-fun PowerButton(isPoweredOn: Boolean, onPowerToggle: (String) -> Unit) {
+fun PowerButton(isPoweredOn: Boolean, onPowerToggle: (String) -> Unit, modifier: Modifier = Modifier) {
     val buttonColor = if (isPoweredOn) Color.Red else Color.Green
     val contentColor = Color.White
 
     Button(
         onClick = { onPowerToggle(if (isPoweredOn) "0" else "1") },
-        modifier = Modifier
-            .size(80.dp) // Make it a prominent circle
+        modifier = modifier
+            .size(56.dp) // Smaller size
             .clip(CircleShape)
             .background(buttonColor),
         colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = contentColor)
@@ -191,7 +203,7 @@ fun PowerButton(isPoweredOn: Boolean, onPowerToggle: (String) -> Unit) {
         Icon(
             imageVector = Icons.Default.PowerSettingsNew,
             contentDescription = if (isPoweredOn) "Turn Off" else "Turn On",
-            modifier = Modifier.size(48.dp)
+            modifier = Modifier.size(48.dp) // Smaller icon
         )
     }
 }
@@ -213,14 +225,24 @@ fun ModeSelector(currentMode: String, onSetMode: (String) -> Unit) {
                 val (filledIcon, outlinedIcon) = iconPair
                 val icon = if (currentMode == key) filledIcon else outlinedIcon
 
-                Icon(
-                    imageVector = icon,
-                    contentDescription = "Mode ${key}",
-                    tint = color,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clickable { onSetMode(key) }
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = "Mode ${key}",
+                        tint = color,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clickable { onSetMode(key) }
+                    )
+                    Text(text = when(key) {
+                        "0" -> "Fan"
+                        "1" -> "Heat"
+                        "2" -> "Cool"
+                        "3" -> "Auto"
+                        "7" -> "Dry"
+                        else -> "Unknown"
+                    }, style = MaterialTheme.typography.labelSmall)
+                }
             }
         }
     }
@@ -228,17 +250,36 @@ fun ModeSelector(currentMode: String, onSetMode: (String) -> Unit) {
 
 @Composable
 fun FanRateSelector(currentFanRate: String, onSetFanRate: (String) -> Unit) {
-    val fanRates = listOf("A", "1", "2", "3", "4", "5") // A for Auto
+    val fanRates = mapOf(
+        "A" to Pair(Pair(Icons.Filled.Speed, Icons.Outlined.Speed), Color.Gray), // Auto
+        "1" to Pair(Pair(Icons.Filled.Speed, Icons.Outlined.Speed), Color.Blue.copy(alpha = 0.3f)), // Speed 1
+        "2" to Pair(Pair(Icons.Filled.Speed, Icons.Outlined.Speed), Color.Blue.copy(alpha = 0.5f)), // Speed 2
+        "3" to Pair(Pair(Icons.Filled.Speed, Icons.Outlined.Speed), Color.Blue.copy(alpha = 0.7f)), // Speed 3
+        "4" to Pair(Pair(Icons.Filled.Speed, Icons.Outlined.Speed), Color.Blue.copy(alpha = 0.9f)), // Speed 4
+        "5" to Pair(Pair(Icons.Filled.Speed, Icons.Outlined.Speed), Color.Blue) // Speed 5
+    )
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Fan", style = MaterialTheme.typography.titleMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            fanRates.forEach { rate ->
-                Text(
-                    text = rate,
-                    color = if (currentFanRate == rate) MaterialTheme.colorScheme.primary else Color.Gray,
-                    fontWeight = if (currentFanRate == rate) FontWeight.Bold else FontWeight.Normal,
-                    modifier = Modifier.clickable { onSetFanRate(rate) }
-                )
+            fanRates.forEach { (key, iconPairAndColor) ->
+                val (iconPair, color) = iconPairAndColor
+                val (filledIcon, outlinedIcon) = iconPair
+                val icon = if (currentFanRate == key) filledIcon else outlinedIcon
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = "Fan Rate ${key}",
+                        tint = color,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clickable { onSetFanRate(key) }
+                    )
+                    Text(text = when(key) {
+                        "A" -> "Auto"
+                        else -> key
+                    }, style = MaterialTheme.typography.labelSmall)
+                }
             }
         }
     }
