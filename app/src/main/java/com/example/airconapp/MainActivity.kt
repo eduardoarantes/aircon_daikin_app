@@ -65,7 +65,8 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToEditSchedule = { schedule ->
                                     val scheduleJson = Gson().toJson(schedule)
                                     navController.navigate("add_edit_schedule_json/$scheduleJson")
-                                }
+                                },
+                                onNavigateBack = { navController.popBackStack() }
                             )
                         }
                         composable(
