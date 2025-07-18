@@ -24,11 +24,14 @@ import com.example.airconapp.ui.screens.AddEditScheduleScreen
 import com.example.airconapp.ui.screens.SchedulerScreen
 import com.example.airconapp.ui.theme.AirconAppTheme
 import com.google.gson.Gson
+import com.example.airconapp.scheduler.ScheduleManager
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         NetworkModule.initialize(applicationContext)
+        
+        ScheduleManager.getInstance(this).startScheduleMonitoring()
         setContent {
             AirconAppTheme {
                 Surface(

@@ -23,4 +23,8 @@ class SchedulerRepository(private val schedulerProfileDao: SchedulerProfileDao) 
     suspend fun delete(profile: SchedulerProfile) {
         schedulerProfileDao.delete(profile)
     }
+    
+    suspend fun getAllSchedulesSync(): List<SchedulerProfile> {
+        return schedulerProfileDao.getAllSync()
+    }
 }
