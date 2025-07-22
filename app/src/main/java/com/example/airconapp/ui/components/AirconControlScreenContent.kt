@@ -226,8 +226,7 @@ fun PowerButton(isPoweredOn: Boolean, onPowerToggle: (String) -> Unit, modifier:
         Icon(
             imageVector = Icons.Default.PowerSettingsNew,
             contentDescription = if (isPoweredOn) "Turn Off" else "Turn On",
-            tint = Color.Black, // Explicitly set tint for testing
-            modifier = Modifier.size(48.dp) // Icon size
+            modifier = Modifier.size(52.dp)
         )
     }
 }
