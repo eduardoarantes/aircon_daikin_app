@@ -42,11 +42,15 @@ class ScheduleWorker(
             airconApiService.setControlInfo(schedule.controlInfo)
             airconApiService.setZoneSetting(schedule.zones)
 
-            // Set schedule to inactive after execution
-            val updatedSchedule = schedule.copy(isActive = false)
-            schedulerRepository.update(updatedSchedule)
+            // Update isActive based on endTime presence
+            if (schedule.endTime == null) {
+                val updatedSchedule = schedule.copy(isActive = false)
+                schedulerRepository.update(updatedSchedule)
+                Log.d("ScheduleWorker", "Successfully executed schedule ID $scheduleId and set to inactive (no end time).")
+            } else {
+                Log.d("ScheduleWorker", "Successfully executed schedule ID $scheduleId. Remaining active for end time.")
+            }
 
-            Log.d("ScheduleWorker", "Successfully executed schedule ID $scheduleId and set to inactive.")
             Result.success()
         } catch (e: Exception) {
             Log.e("ScheduleWorker", "Failed to execute schedule ID $scheduleId: ${e.message}")

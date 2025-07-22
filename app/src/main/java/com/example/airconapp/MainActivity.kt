@@ -19,9 +19,11 @@ import com.example.airconapp.data.db.SchedulerProfile
 import com.example.airconapp.di.NetworkModule
 import com.example.airconapp.presentation.MainViewModel
 import com.example.airconapp.presentation.SchedulerViewModel
+import com.example.airconapp.presentation.SettingsViewModel
 import com.example.airconapp.ui.components.AirconControlScreenContent
 import com.example.airconapp.ui.screens.AddEditScheduleScreen
 import com.example.airconapp.ui.screens.SchedulerScreen
+import com.example.airconapp.ui.screens.SettingsScreen
 import com.example.airconapp.ui.theme.AirconAppTheme
 import com.google.gson.Gson
 import com.example.airconapp.scheduler.ScheduleManager
@@ -68,7 +70,8 @@ class MainActivity : ComponentActivity() {
                                 onSetMode = { mode -> mainViewModel.setMode(mode) },
                                 onSetFanRate = { fanRate -> mainViewModel.setFanRate(fanRate) },
                                 onSetZonePower = { index, isOn -> mainViewModel.setZonePower(index, isOn) },
-                                onNavigateToScheduler = { navController.navigate("scheduler_list") }
+                                onNavigateToScheduler = { navController.navigate("scheduler_list") },
+                                onNavigateToSettings = { navController.navigate("settings") }
                             )
                         }
                         composable("scheduler_list") {
@@ -111,6 +114,14 @@ class MainActivity : ComponentActivity() {
                                 schedule = null,
                                 availableZones = currentZones ?: emptyList(), // Pass available zones
                                 onNavigateBack = { navController.popBackStack() }
+                            )
+                        }
+                        composable("settings") {
+                            val settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.factory(application))
+                            SettingsScreen(
+                                viewModel = settingsViewModel,
+                                onNavigateBack = { navController.popBackStack() },
+                                onSettingsSaved = { navController.navigate("main_control") { popUpTo("main_control") { inclusive = true } } }
                             )
                         }
                     }

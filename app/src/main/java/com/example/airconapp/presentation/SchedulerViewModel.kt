@@ -44,6 +44,7 @@ class SchedulerViewModel(application: Application, private val repository: Sched
         val newProfile = profile.copy(id = newId)
         if (newProfile.isActive) {
             scheduleManager.schedule(newProfile)
+            newProfile.endTime?.let { scheduleManager.scheduleEndTime(newProfile) }
         }
     }
 
@@ -51,14 +52,17 @@ class SchedulerViewModel(application: Application, private val repository: Sched
         repository.update(profile)
         if (profile.isActive) {
             scheduleManager.schedule(profile)
+            profile.endTime?.let { scheduleManager.scheduleEndTime(profile) } ?: scheduleManager.cancelEndTime(profile.id)
         } else {
             scheduleManager.cancel(profile.id)
+            scheduleManager.cancelEndTime(profile.id)
         }
     }
 
     fun delete(profile: SchedulerProfile) = viewModelScope.launch {
         repository.delete(profile)
         scheduleManager.cancel(profile.id)
+        scheduleManager.cancelEndTime(profile.id)
     }
 
     companion object {

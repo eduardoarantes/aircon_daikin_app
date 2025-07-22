@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -57,6 +58,7 @@ fun AirconControlScreenContent(
     onSetFanRate: (String) -> Unit,
     onSetZonePower: (Int, Boolean) -> Unit,
     onNavigateToScheduler: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -82,7 +84,8 @@ fun AirconControlScreenContent(
                 onSetMode = onSetMode,
                 onSetFanRate = onSetFanRate,
                 onSetZonePower = onSetZonePower,
-                onNavigateToScheduler = onNavigateToScheduler
+                onNavigateToScheduler = onNavigateToScheduler,
+                onNavigateToSettings = onNavigateToSettings
             )
         } else {
             // This will be shown during initial load or if data is null after an error
@@ -101,7 +104,8 @@ fun FullAirconControlUI(
     onSetMode: (String) -> Unit,
     onSetFanRate: (String) -> Unit,
     onSetZonePower: (Int, Boolean) -> Unit,
-    onNavigateToScheduler: () -> Unit
+    onNavigateToScheduler: () -> Unit,
+    onNavigateToSettings: () -> Unit
 ) {
     val alpha = if (isPoweredOn) 1f else 0.5f // Dim controls when off
 
@@ -110,6 +114,17 @@ fun FullAirconControlUI(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.fillMaxSize()
         ) {
+            // Top bar with settings icon
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onNavigateToSettings) {
+                    Icon(Icons.Default.Settings, contentDescription = "Settings")
+                }
+            }
+
             // Main controls with alpha effect when aircon is off
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -184,12 +199,12 @@ fun FullAirconControlUI(
             }
         }
 
-        // Power Button (top right corner)
+        // Power Button (top left corner)
         PowerButton(
             isPoweredOn = isPoweredOn,
             onPowerToggle = onPowerToggle,
             modifier = Modifier
-                .align(Alignment.TopEnd) // Align to top-right
+                .align(Alignment.TopStart) // Align to top-left
                 .padding(16.dp) // Add some padding from the edge
         )
     }
@@ -211,7 +226,8 @@ fun PowerButton(isPoweredOn: Boolean, onPowerToggle: (String) -> Unit, modifier:
         Icon(
             imageVector = Icons.Default.PowerSettingsNew,
             contentDescription = if (isPoweredOn) "Turn Off" else "Turn On",
-            modifier = Modifier.size(48.dp) // Smaller icon
+            tint = Color.Black, // Explicitly set tint for testing
+            modifier = Modifier.size(48.dp) // Icon size
         )
     }
 }
@@ -333,7 +349,8 @@ fun PreviewFullAirconControlUI() {
             onSetMode = {},
             onSetFanRate = {},
             onSetZonePower = { _, _ -> },
-            onNavigateToScheduler = {}
+            onNavigateToScheduler = {},
+            onNavigateToSettings = {}
         )
     }
 }
@@ -355,7 +372,8 @@ fun PreviewFullAirconControlUIOff() {
             onSetMode = {},
             onSetFanRate = {},
             onSetZonePower = { _, _ -> },
-            onNavigateToScheduler = {}
+            onNavigateToScheduler = {},
+            onNavigateToSettings = {}
         )
     }
 }

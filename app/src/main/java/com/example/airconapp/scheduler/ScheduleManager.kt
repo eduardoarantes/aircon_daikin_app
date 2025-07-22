@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.*
 import com.example.airconapp.data.db.SchedulerProfile
 import com.example.airconapp.worker.ScheduleWorker
+import com.example.airconapp.worker.EndTimeWorker
 import java.time.Duration
 import java.time.LocalTime
 import java.time.ZonedDateTime
@@ -46,6 +47,52 @@ class ScheduleManager(private val context: Context) {
 
     fun cancel(profileId: Int) {
         workManager.cancelUniqueWork("schedule_$profileId")
+    }
+
+    fun scheduleEndTime(profile: SchedulerProfile) {
+        profile.endTime?.let { endTimeString ->
+            val now = ZonedDateTime.now()
+            var nextExecutionTime = now
+                .with(LocalTime.parse(endTimeString))
+
+            // If end time is before start time, it means it's on the next day
+            val startTime = LocalTime.parse(profile.startTime)
+            val endTime = LocalTime.parse(endTimeString)
+
+            if (endTime.isBefore(startTime)) {
+                nextExecutionTime = nextExecutionTime.plusDays(1)
+            }
+
+            // If the end time is already past for today, schedule for tomorrow
+            if (nextExecutionTime.isBefore(now)) {
+                nextExecutionTime = nextExecutionTime.plusDays(1)
+            }
+
+            val delay = Duration.between(now, nextExecutionTime).toMillis()
+
+            val data = workDataOf("SCHEDULE_ID" to profile.id)
+
+            val workRequest = OneTimeWorkRequestBuilder<EndTimeWorker>()
+                .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                .setInputData(data)
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
+                )
+                .addTag("end_time_${profile.id}")
+                .build()
+
+            workManager.enqueueUniqueWork(
+                "end_time_${profile.id}",
+                ExistingWorkPolicy.REPLACE,
+                workRequest
+            )
+        }
+    }
+
+    fun cancelEndTime(profileId: Int) {
+        workManager.cancelUniqueWork("end_time_$profileId")
     }
 
     companion object {
