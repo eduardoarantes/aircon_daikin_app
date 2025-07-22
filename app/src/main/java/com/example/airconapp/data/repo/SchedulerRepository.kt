@@ -12,8 +12,8 @@ class SchedulerRepository(private val schedulerProfileDao: SchedulerProfileDao) 
         return schedulerProfileDao.getById(id)
     }
 
-    suspend fun insert(profile: SchedulerProfile) {
-        schedulerProfileDao.insert(profile)
+    suspend fun insert(profile: SchedulerProfile): Long {
+        return schedulerProfileDao.insert(profile)
     }
 
     suspend fun update(profile: SchedulerProfile) {
@@ -22,5 +22,9 @@ class SchedulerRepository(private val schedulerProfileDao: SchedulerProfileDao) 
 
     suspend fun delete(profile: SchedulerProfile) {
         schedulerProfileDao.delete(profile)
+    }
+    
+    suspend fun getAllSchedulesSync(): List<SchedulerProfile> {
+        return schedulerProfileDao.getAllSync()
     }
 }

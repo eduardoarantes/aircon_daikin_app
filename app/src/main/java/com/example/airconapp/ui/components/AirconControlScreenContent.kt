@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -57,6 +58,7 @@ fun AirconControlScreenContent(
     onSetFanRate: (String) -> Unit,
     onSetZonePower: (Int, Boolean) -> Unit,
     onNavigateToScheduler: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -82,7 +84,8 @@ fun AirconControlScreenContent(
                 onSetMode = onSetMode,
                 onSetFanRate = onSetFanRate,
                 onSetZonePower = onSetZonePower,
-                onNavigateToScheduler = onNavigateToScheduler
+                onNavigateToScheduler = onNavigateToScheduler,
+                onNavigateToSettings = onNavigateToSettings
             )
         } else {
             // This will be shown during initial load or if data is null after an error
@@ -101,87 +104,107 @@ fun FullAirconControlUI(
     onSetMode: (String) -> Unit,
     onSetFanRate: (String) -> Unit,
     onSetZonePower: (Int, Boolean) -> Unit,
-    onNavigateToScheduler: () -> Unit
+    onNavigateToScheduler: () -> Unit,
+    onNavigateToSettings: () -> Unit
 ) {
     val alpha = if (isPoweredOn) 1f else 0.5f // Dim controls when off
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .fillMaxSize()
-                .alpha(alpha)
-                .padding(top = 16.dp, start = 16.dp, end = 16.dp) // Add padding to avoid overlap with button
+            modifier = Modifier.fillMaxSize()
         ) {
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Temperature Display and Controls
+            // Top bar with settings icon
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "${controlInfo.stemp}°C",
-                    fontSize = 96.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
-            Slider(
-                value = controlInfo.stemp.toFloatOrNull() ?: 20f,
-                onValueChange = { newValue -> onSetTemperature(newValue.toInt().toString()) },
-                valueRange = 16f..30f,
-                steps = 13, // 16 to 30 inclusive, 14 steps, so 13 divisions
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Mode and Fan Speed Controls
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceAround,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ModeSelector(currentMode = controlInfo.mode, onSetMode = onSetMode)
-                FanRateSelector(currentFanRate = controlInfo.f_rate, onSetFanRate = onSetFanRate)
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Zones Display
-            Text("Zones", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.align(Alignment.Start))
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f) // Take remaining space
-                    .background(Color.LightGray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                    .clip(RoundedCornerShape(8.dp))
-                    .border(1.dp, Color.Gray, RoundedCornerShape(8.dp)),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                contentPadding = PaddingValues(8.dp)
-            ) {
-                itemsIndexed(zoneStatus) { index, zone ->
-                    ZoneItem(zone = zone, onToggle = { isOn -> onSetZonePower(index, isOn) })
+                IconButton(onClick = onNavigateToSettings) {
+                    Icon(Icons.Default.Settings, contentDescription = "Settings")
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // Main controls with alpha effect when aircon is off
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .alpha(alpha)
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+            ) {
+                Spacer(modifier = Modifier.height(32.dp))
 
-            // Manage Schedules Button
-            Button(onClick = onNavigateToScheduler) {
+                // Temperature Display and Controls
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "${controlInfo.stemp}°C",
+                        fontSize = 96.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+                Slider(
+                    value = controlInfo.stemp.toFloatOrNull() ?: 20f,
+                    onValueChange = { newValue -> onSetTemperature(newValue.toInt().toString()) },
+                    valueRange = 16f..30f,
+                    steps = 13, // 16 to 30 inclusive, 14 steps, so 13 divisions
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Mode and Fan Speed Controls
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ModeSelector(currentMode = controlInfo.mode, onSetMode = onSetMode)
+                    FanRateSelector(currentFanRate = controlInfo.f_rate, onSetFanRate = onSetFanRate)
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Zones Display
+                Text("Zones", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.align(Alignment.Start))
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f) // Take remaining space
+                        .background(Color.LightGray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(8.dp))
+                        .border(1.dp, Color.Gray, RoundedCornerShape(8.dp)),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    contentPadding = PaddingValues(8.dp)
+                ) {
+                    itemsIndexed(zoneStatus) { index, zone ->
+                        ZoneItem(zone = zone, onToggle = { isOn -> onSetZonePower(index, isOn) })
+                    }
+                }
+            }
+
+            // Manage Schedules Button - always fully visible/enabled
+            Button(
+                onClick = onNavigateToScheduler,
+                modifier = Modifier.padding(16.dp)
+            ) {
                 Text("Manage Schedules")
             }
         }
 
-        // Power Button (top right corner)
+        // Power Button (top left corner)
         PowerButton(
             isPoweredOn = isPoweredOn,
             onPowerToggle = onPowerToggle,
             modifier = Modifier
-                .align(Alignment.TopEnd) // Align to top-right
+                .align(Alignment.TopStart) // Align to top-left
                 .padding(16.dp) // Add some padding from the edge
         )
     }
@@ -325,7 +348,8 @@ fun PreviewFullAirconControlUI() {
             onSetMode = {},
             onSetFanRate = {},
             onSetZonePower = { _, _ -> },
-            onNavigateToScheduler = {}
+            onNavigateToScheduler = {},
+            onNavigateToSettings = {}
         )
     }
 }
@@ -347,7 +371,8 @@ fun PreviewFullAirconControlUIOff() {
             onSetMode = {},
             onSetFanRate = {},
             onSetZonePower = { _, _ -> },
-            onNavigateToScheduler = {}
+            onNavigateToScheduler = {},
+            onNavigateToSettings = {}
         )
     }
 }

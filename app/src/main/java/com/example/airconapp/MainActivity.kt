@@ -19,16 +19,32 @@ import com.example.airconapp.data.db.SchedulerProfile
 import com.example.airconapp.di.NetworkModule
 import com.example.airconapp.presentation.MainViewModel
 import com.example.airconapp.presentation.SchedulerViewModel
+import com.example.airconapp.presentation.SettingsViewModel
 import com.example.airconapp.ui.components.AirconControlScreenContent
 import com.example.airconapp.ui.screens.AddEditScheduleScreen
 import com.example.airconapp.ui.screens.SchedulerScreen
+import com.example.airconapp.ui.screens.SettingsScreen
 import com.example.airconapp.ui.theme.AirconAppTheme
 import com.google.gson.Gson
+import com.example.airconapp.scheduler.ScheduleManager
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         NetworkModule.initialize(applicationContext)
+
+        // Schedule existing profiles
+        lifecycleScope.launch {
+            val schedulerRepository = NetworkModule.schedulerRepository
+            val scheduleManager = ScheduleManager.getInstance(applicationContext)
+            schedulerRepository.allSchedulerProfiles.first().forEach {
+                scheduleManager.schedule(it)
+            }
+        }
+
         setContent {
             AirconAppTheme {
                 Surface(
@@ -54,13 +70,17 @@ class MainActivity : ComponentActivity() {
                                 onSetMode = { mode -> mainViewModel.setMode(mode) },
                                 onSetFanRate = { fanRate -> mainViewModel.setFanRate(fanRate) },
                                 onSetZonePower = { index, isOn -> mainViewModel.setZonePower(index, isOn) },
-                                onNavigateToScheduler = { navController.navigate("scheduler_list") }
+                                onNavigateToScheduler = { navController.navigate("scheduler_list") },
+                                onNavigateToSettings = { navController.navigate("settings") }
                             )
                         }
                         composable("scheduler_list") {
-                            val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.Factory)
+                            val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.factory(application))
+                            val mainViewModel: MainViewModel = viewModel()
+                            val currentZones by mainViewModel.zoneStatus.collectAsState()
                             SchedulerScreen(
                                 viewModel = schedulerViewModel,
+                                availableZones = currentZones ?: emptyList(),
                                 onNavigateToAddEditSchedule = { navController.navigate("add_edit_schedule") },
                                 onNavigateToEditSchedule = { schedule ->
                                     val scheduleJson = Gson().toJson(schedule)
@@ -73,7 +93,7 @@ class MainActivity : ComponentActivity() {
                             "add_edit_schedule_json/{scheduleJson}",
                             arguments = listOf(navArgument("scheduleJson") { type = NavType.StringType; nullable = true })
                         ) {
-                            val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.Factory)
+                            val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.factory(application))
                             val scheduleJson = it.arguments?.getString("scheduleJson")
                             val schedule = if (scheduleJson != null) Gson().fromJson(scheduleJson, SchedulerProfile::class.java) else null
                             val mainViewModel: MainViewModel = viewModel() // Get MainViewModel to access zoneStatus
@@ -86,7 +106,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable("add_edit_schedule") {
-                            val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.Factory)
+                            val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.factory(application))
                             val mainViewModel: MainViewModel = viewModel() // Get MainViewModel to access zoneStatus
                             val currentZones by mainViewModel.zoneStatus.collectAsState()
                             AddEditScheduleScreen(
@@ -94,6 +114,14 @@ class MainActivity : ComponentActivity() {
                                 schedule = null,
                                 availableZones = currentZones ?: emptyList(), // Pass available zones
                                 onNavigateBack = { navController.popBackStack() }
+                            )
+                        }
+                        composable("settings") {
+                            val settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.factory(application))
+                            SettingsScreen(
+                                viewModel = settingsViewModel,
+                                onNavigateBack = { navController.popBackStack() },
+                                onSettingsSaved = { navController.navigate("main_control") { popUpTo("main_control") { inclusive = true } } }
                             )
                         }
                     }

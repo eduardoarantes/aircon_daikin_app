@@ -31,11 +31,13 @@ import androidx.compose.ui.unit.sp
 import com.example.airconapp.data.db.SchedulerProfile
 import com.example.airconapp.presentation.SchedulerViewModel
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import com.example.airconapp.data.Zone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SchedulerScreen(
     viewModel: SchedulerViewModel,
+    availableZones: List<Zone>,
     onNavigateToAddEditSchedule: () -> Unit,
     onNavigateToEditSchedule: (SchedulerProfile) -> Unit,
     onNavigateBack: () -> Unit
@@ -76,6 +78,7 @@ fun SchedulerScreen(
                     items(allProfiles) { profile ->
                         ScheduleItem(
                             profile = profile,
+                            availableZones = availableZones,
                             onEdit = { onNavigateToEditSchedule(profile) },
                             onDelete = { viewModel.delete(profile) }
                         )
@@ -89,6 +92,7 @@ fun SchedulerScreen(
 @Composable
 fun ScheduleItem(
     profile: SchedulerProfile,
+    availableZones: List<Zone>,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -133,7 +137,14 @@ fun ScheduleItem(
             Text("Mode: ${modeNames[profile.controlInfo.mode] ?: profile.controlInfo.mode}", fontSize = 16.sp)
             Text("Temp: ${profile.controlInfo.stemp}°C", fontSize = 16.sp)
             Text("Fan: ${profile.controlInfo.f_rate}", fontSize = 16.sp)
-            Text("Zones: ${profile.zones.filter { it.isOn }.joinToString { it.name }}", fontSize = 16.sp)
+            Text("Status: ${if (profile.isActive) "Active" else "Inactive"}", fontSize = 16.sp)
+            val activeZoneNames = profile.zones
+                .filter { it.isOn }
+                .mapNotNull { savedZone -> 
+                    availableZones.find { it.name == savedZone.name }?.name ?: savedZone.name
+                }
+                .joinToString(", ")
+            Text("Zones: $activeZoneNames", fontSize = 16.sp)
         }
     }
 }

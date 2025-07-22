@@ -16,8 +16,11 @@ interface SchedulerProfileDao {
     @Query("SELECT * FROM scheduler_profiles WHERE id = :id")
     suspend fun getById(id: Int): SchedulerProfile?
 
+    @Query("SELECT * FROM scheduler_profiles ORDER BY startTime ASC")
+    suspend fun getAllSync(): List<SchedulerProfile>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(profile: SchedulerProfile)
+    suspend fun insert(profile: SchedulerProfile): Long
 
     @Update
     suspend fun update(profile: SchedulerProfile)
