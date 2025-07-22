@@ -25,13 +25,24 @@ import com.example.airconapp.ui.screens.SchedulerScreen
 import com.example.airconapp.ui.theme.AirconAppTheme
 import com.google.gson.Gson
 import com.example.airconapp.scheduler.ScheduleManager
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         NetworkModule.initialize(applicationContext)
-        
-        ScheduleManager.getInstance(this).startScheduleMonitoring()
+
+        // Schedule existing profiles
+        lifecycleScope.launch {
+            val schedulerRepository = NetworkModule.schedulerRepository
+            val scheduleManager = ScheduleManager.getInstance(applicationContext)
+            schedulerRepository.allSchedulerProfiles.first().forEach {
+                scheduleManager.schedule(it)
+            }
+        }
+
         setContent {
             AirconAppTheme {
                 Surface(
@@ -61,7 +72,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable("scheduler_list") {
-                            val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.Factory)
+                            val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.factory(application))
                             val mainViewModel: MainViewModel = viewModel()
                             val currentZones by mainViewModel.zoneStatus.collectAsState()
                             SchedulerScreen(
@@ -79,7 +90,7 @@ class MainActivity : ComponentActivity() {
                             "add_edit_schedule_json/{scheduleJson}",
                             arguments = listOf(navArgument("scheduleJson") { type = NavType.StringType; nullable = true })
                         ) {
-                            val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.Factory)
+                            val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.factory(application))
                             val scheduleJson = it.arguments?.getString("scheduleJson")
                             val schedule = if (scheduleJson != null) Gson().fromJson(scheduleJson, SchedulerProfile::class.java) else null
                             val mainViewModel: MainViewModel = viewModel() // Get MainViewModel to access zoneStatus
@@ -92,7 +103,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable("add_edit_schedule") {
-                            val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.Factory)
+                            val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.factory(application))
                             val mainViewModel: MainViewModel = viewModel() // Get MainViewModel to access zoneStatus
                             val currentZones by mainViewModel.zoneStatus.collectAsState()
                             AddEditScheduleScreen(

@@ -137,6 +137,7 @@ fun ScheduleItem(
             Text("Mode: ${modeNames[profile.controlInfo.mode] ?: profile.controlInfo.mode}", fontSize = 16.sp)
             Text("Temp: ${profile.controlInfo.stemp}°C", fontSize = 16.sp)
             Text("Fan: ${profile.controlInfo.f_rate}", fontSize = 16.sp)
+            Text("Status: ${if (profile.isActive) "Active" else "Inactive"}", fontSize = 16.sp)
             val activeZoneNames = profile.zones
                 .filter { it.isOn }
                 .mapNotNull { savedZone -> 

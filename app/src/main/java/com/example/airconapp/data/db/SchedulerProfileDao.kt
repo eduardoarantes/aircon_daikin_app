@@ -20,7 +20,7 @@ interface SchedulerProfileDao {
     suspend fun getAllSync(): List<SchedulerProfile>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(profile: SchedulerProfile)
+    suspend fun insert(profile: SchedulerProfile): Long
 
     @Update
     suspend fun update(profile: SchedulerProfile)

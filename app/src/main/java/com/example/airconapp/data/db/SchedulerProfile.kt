@@ -14,7 +14,8 @@ data class SchedulerProfile(
     val startTime: String,
     val endTime: String?,
     val controlInfo: ControlInfo,
-    val zones: List<Zone>
+    val zones: List<Zone>,
+    val isActive: Boolean = true
 )
 
 data class ControlInfo(

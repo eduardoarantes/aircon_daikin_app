@@ -1,14 +1,13 @@
 package com.example.airconapp.worker
 
 import android.content.Context
+import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.airconapp.di.NetworkModule
+import com.example.airconapp.scheduler.ScheduleManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
-import android.util.Log
 
 class ScheduleWorker(
     context: Context,
@@ -17,39 +16,40 @@ class ScheduleWorker(
 
     private val schedulerRepository = NetworkModule.schedulerRepository
     private val airconApiService = NetworkModule.airconApiService
+    private val scheduleManager = ScheduleManager.getInstance(context)
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        val scheduleId = inputData.getInt("SCHEDULE_ID", -1)
+        if (scheduleId == -1) {
+            return@withContext Result.failure()
+        }
+
         try {
-            Log.d("ScheduleWorker", "Checking for schedules to execute...")
-            
-            val currentTime = LocalTime.now()
-            val currentTimeString = currentTime.format(DateTimeFormatter.ofPattern("HH:mm"))
-            
-            val allProfiles = schedulerRepository.getAllSchedulesSync()
-            
-            val schedulesToExecute = allProfiles.filter { profile ->
-                profile.startTime == currentTimeString
+            Log.d("ScheduleWorker", "Executing schedule ID $scheduleId")
+
+            val schedule = schedulerRepository.getProfileById(scheduleId)
+
+            if (schedule == null) {
+                Log.e("ScheduleWorker", "Schedule with ID $scheduleId not found")
+                return@withContext Result.failure()
             }
-            
-            Log.d("ScheduleWorker", "Found ${schedulesToExecute.size} schedules to execute at $currentTimeString")
-            
-            for (schedule in schedulesToExecute) {
-                try {
-                    Log.d("ScheduleWorker", "Executing schedule ID ${schedule.id}")
-                    
-                    airconApiService.setControlInfo(schedule.controlInfo)
-                    
-                    airconApiService.setZoneSetting(schedule.zones)
-                    
-                    Log.d("ScheduleWorker", "Successfully executed schedule ID ${schedule.id}")
-                } catch (e: Exception) {
-                    Log.e("ScheduleWorker", "Failed to execute schedule ID ${schedule.id}: ${e.message}")
-                }
+
+            if (!schedule.isActive) {
+                Log.d("ScheduleWorker", "Schedule ID $scheduleId is not active. Skipping execution.")
+                return@withContext Result.success()
             }
-            
+
+            airconApiService.setControlInfo(schedule.controlInfo)
+            airconApiService.setZoneSetting(schedule.zones)
+
+            // Set schedule to inactive after execution
+            val updatedSchedule = schedule.copy(isActive = false)
+            schedulerRepository.update(updatedSchedule)
+
+            Log.d("ScheduleWorker", "Successfully executed schedule ID $scheduleId and set to inactive.")
             Result.success()
         } catch (e: Exception) {
-            Log.e("ScheduleWorker", "ScheduleWorker failed: ${e.message}")
+            Log.e("ScheduleWorker", "Failed to execute schedule ID $scheduleId: ${e.message}")
             Result.retry()
         }
     }

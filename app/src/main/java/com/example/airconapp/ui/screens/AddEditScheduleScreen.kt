@@ -44,6 +44,7 @@ fun AddEditScheduleScreen(viewModel: SchedulerViewModel, schedule: SchedulerProf
     var selectedTemperature by remember { mutableStateOf("23") } // Default temp
     var selectedFanRate by remember { mutableStateOf("A") } // Default to Auto
     var selectedZones by remember { mutableStateOf(listOf<Zone>()) }
+    var isActive by remember { mutableStateOf(true) } // New state for isActive
 
     var isStartTimeError by remember { mutableStateOf(false) }
     var isZoneSelectionError by remember { mutableStateOf(false) }
@@ -57,8 +58,10 @@ fun AddEditScheduleScreen(viewModel: SchedulerViewModel, schedule: SchedulerProf
             selectedTemperature = it.controlInfo.stemp
             selectedFanRate = it.controlInfo.f_rate
             selectedZones = it.zones
+            isActive = it.isActive // Initialize isActive from existing schedule
         } ?: run { // If schedule is null (new schedule), initialize zones from availableZones
             selectedZones = availableZones.map { it.copy(isOn = false) } // All off by default for new schedule
+            isActive = true // Default to active for new schedules
         }
     }
 
@@ -174,6 +177,14 @@ fun AddEditScheduleScreen(viewModel: SchedulerViewModel, schedule: SchedulerProf
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Active", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.weight(1f))
+            Switch(checked = isActive, onCheckedChange = { isActive = it })
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceAround
@@ -197,7 +208,8 @@ fun AddEditScheduleScreen(viewModel: SchedulerViewModel, schedule: SchedulerProf
                                 f_rate = selectedFanRate,
                                 f_dir = "0" // Default fan direction
                             ),
-                            zones = selectedZones
+                            zones = selectedZones,
+                            isActive = isActive
                         ) ?: SchedulerProfile(
                             startTime = startTime,
                             endTime = endTime.ifEmpty { null },
@@ -208,7 +220,8 @@ fun AddEditScheduleScreen(viewModel: SchedulerViewModel, schedule: SchedulerProf
                                 f_rate = selectedFanRate,
                                 f_dir = "0" // Default fan direction
                             ),
-                            zones = selectedZones
+                            zones = selectedZones,
+                            isActive = isActive
                         )
 
                         if (schedule == null) {
