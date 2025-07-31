@@ -3,9 +3,9 @@ package com.example.airconapp.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.airconapp.data.AirconApiService
+import com.example.airconapp.data.ConnectionException
 import com.example.airconapp.data.ControlInfo
 import com.example.airconapp.data.Zone
-import com.example.airconapp.data.ZoneStatusResponse
 import com.example.airconapp.di.NetworkModule
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,7 +14,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 
-class MainViewModel(private val airconApiService: AirconApiService = NetworkModule.airconApiService) : ViewModel() {
+class MainViewModel : ViewModel() { // Removed airconApiService from constructor
 
     private val _controlInfo = MutableStateFlow<ControlInfo?>(null)
     val controlInfo: StateFlow<ControlInfo?> = _controlInfo
@@ -28,7 +28,14 @@ class MainViewModel(private val airconApiService: AirconApiService = NetworkModu
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
+    private val _showConnectionErrorDialog = MutableStateFlow(false)
+    val showConnectionErrorDialog: StateFlow<Boolean> = _showConnectionErrorDialog
+
     private var refreshJob: Job? = null
+
+    // Get the current API service from NetworkModule
+    private val airconApiService: AirconApiService
+        get() = NetworkModule.airconApiService
 
     init {
         fetchAirconStatus()
@@ -59,6 +66,8 @@ class MainViewModel(private val airconApiService: AirconApiService = NetworkModu
             try {
                 _controlInfo.value = airconApiService.getControlInfo()
                 _zoneStatus.value = airconApiService.getZoneSetting().zones
+            } catch (e: ConnectionException) {
+                _showConnectionErrorDialog.value = true
             } catch (e: Exception) {
                 _error.value = "Failed to fetch aircon status: ${e.message}"
             } finally {
@@ -148,5 +157,15 @@ class MainViewModel(private val airconApiService: AirconApiService = NetworkModu
                 fetchAirconStatus()
             }
         }
+    }
+
+    fun hideConnectionErrorDialog() {
+        _showConnectionErrorDialog.value = false
+    }
+
+    fun switchToMockMode() {
+        NetworkModule.setUseMockApi(true)
+        _showConnectionErrorDialog.value = false
+        fetchAirconStatus()
     }
 }

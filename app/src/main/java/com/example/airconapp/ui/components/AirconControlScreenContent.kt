@@ -32,6 +32,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.example.airconapp.data.ConnectionException
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -45,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import com.example.airconapp.data.ControlInfo
 import com.example.airconapp.data.Zone
 import com.example.airconapp.ui.theme.AirconAppTheme
+import com.example.airconapp.ui.components.ConnectionErrorDialog
 
 @Composable
 fun AirconControlScreenContent(
@@ -59,6 +61,9 @@ fun AirconControlScreenContent(
     onSetZonePower: (Int, Boolean) -> Unit,
     onNavigateToScheduler: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    showConnectionErrorDialog: Boolean,
+    onConfirmConnectionError: () -> Unit,
+    onSwitchToMock: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -68,6 +73,13 @@ fun AirconControlScreenContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        if (showConnectionErrorDialog) {
+            ConnectionErrorDialog(
+                onDismiss = onConfirmConnectionError,
+                onSwitchToMock = onSwitchToMock
+            )
+        }
+
         if (error != null) {
             Text(text = "Error: $error", color = MaterialTheme.colorScheme.error)
             Button(onClick = { /* TODO: Implement retry logic */ }) {

@@ -46,48 +46,64 @@ interface AirconApiService {
 class AirconApiServiceImpl(private val client: HttpClient, private val baseUrl: String) : AirconApiService {
 
     override suspend fun getControlInfo(): ControlInfo {
-        val response = client.get {
-            url("$baseUrl/skyfi/aircon/get_control_info")
+        try {
+            val response = client.get {
+                url("$baseUrl/skyfi/aircon/get_control_info")
+            }
+            val rawResponse: String = response.body()
+            return parseControlInfoString(rawResponse)
+        } catch (e: java.net.ConnectException) {
+            throw ConnectionException("Could not connect to aircon")
         }
-        val rawResponse: String = response.body()
-        return parseControlInfoString(rawResponse)
     }
 
     override suspend fun setControlInfo(controlInfo: ControlInfo): String {
-        val queryString = "pow=${controlInfo.pow}&mode=${controlInfo.mode}&stemp=${controlInfo.stemp}&f_rate=${controlInfo.f_rate}&f_dir=${controlInfo.f_dir}"
-        val response = client.post {
-            url("$baseUrl/skyfi/aircon/set_control_info?$queryString")
-            contentType(ContentType.Text.Plain)
+        try {
+            val queryString = "pow=${controlInfo.pow}&mode=${controlInfo.mode}&stemp=${controlInfo.stemp}&f_rate=${controlInfo.f_rate}&f_dir=${controlInfo.f_dir}"
+            val response = client.post {
+                url("$baseUrl/skyfi/aircon/set_control_info?$queryString")
+                contentType(ContentType.Text.Plain)
+            }
+            return response.body()
+        } catch (e: java.net.ConnectException) {
+            throw ConnectionException("Could not connect to aircon")
         }
-        return response.body()
     }
 
     override suspend fun getZoneSetting(): ZoneStatusResponse {
-        val response = client.get {
-            url("$baseUrl/skyfi/aircon/get_zone_setting")
+        try {
+            val response = client.get {
+                url("$baseUrl/skyfi/aircon/get_zone_setting")
+            }
+            val rawResponse: String = response.body()
+            return parseZoneStatusString(rawResponse)
+        } catch (e: java.net.ConnectException) {
+            throw ConnectionException("Could not connect to aircon")
         }
-        val rawResponse: String = response.body()
-        return parseZoneStatusString(rawResponse)
     }
 
     override suspend fun setZoneSetting(zones: List<Zone>): String {
-        val zoneOnOffString = zones.joinToString(";") { if (it.isOn) "1" else "0" }
-        val zoneNameString = zones.joinToString(";") { it.name }
+        try {
+            val zoneOnOffString = zones.joinToString(";") { if (it.isOn) "1" else "0" }
+            val zoneNameString = zones.joinToString(";") { it.name }
 
-        // URL-encode the entire strings before putting them in the query
-        var encodedZoneOnOffString = URLEncoder.encode(zoneOnOffString, "UTF-8")
-        var encodedZoneNameString = URLEncoder.encode(zoneNameString, "UTF-8")
+            // URL-encode the entire strings before putting them in the query
+            var encodedZoneOnOffString = URLEncoder.encode(zoneOnOffString, "UTF-8")
+            var encodedZoneNameString = URLEncoder.encode(zoneNameString, "UTF-8")
 
-        // Explicitly replace '+' with '%20' for spaces, if the API expects it
-        encodedZoneOnOffString = encodedZoneOnOffString.replace("+", "%20")
-        encodedZoneNameString = encodedZoneNameString.replace("+", "%20")
+            // Explicitly replace '+' with '%20' for spaces, if the API expects it
+            encodedZoneOnOffString = encodedZoneOnOffString.replace("+", "%20")
+            encodedZoneNameString = encodedZoneNameString.replace("+", "%20")
 
-        val queryString = "zone_onoff=$encodedZoneOnOffString&zone_name=$encodedZoneNameString"
-        val response = client.post {
-            url("$baseUrl/skyfi/aircon/set_zone_setting?$queryString")
-            contentType(ContentType.Text.Plain)
+            val queryString = "zone_onoff=$encodedZoneOnOffString&zone_name=$encodedZoneNameString"
+            val response = client.post {
+                url("$baseUrl/skyfi/aircon/set_zone_setting?$queryString")
+                contentType(ContentType.Text.Plain)
+            }
+            return response.body()
+        } catch (e: java.net.ConnectException) {
+            throw ConnectionException("Could not connect to aircon")
         }
-        return response.body()
     }
 
     // Helper function to parse control info string

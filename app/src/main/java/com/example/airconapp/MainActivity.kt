@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
                             val zoneStatus by mainViewModel.zoneStatus.collectAsState()
                             val isLoading by mainViewModel.isLoading.collectAsState()
                             val error by mainViewModel.error.collectAsState()
+                            val showConnectionErrorDialog by mainViewModel.showConnectionErrorDialog.collectAsState()
 
                             AirconControlScreenContent(
                                 controlInfo = controlInfo,
@@ -71,7 +72,10 @@ class MainActivity : ComponentActivity() {
                                 onSetFanRate = { fanRate -> mainViewModel.setFanRate(fanRate) },
                                 onSetZonePower = { index, isOn -> mainViewModel.setZonePower(index, isOn) },
                                 onNavigateToScheduler = { navController.navigate("scheduler_list") },
-                                onNavigateToSettings = { navController.navigate("settings") }
+                                onNavigateToSettings = { navController.navigate("settings") },
+                                showConnectionErrorDialog = showConnectionErrorDialog,
+                                onConfirmConnectionError = { mainViewModel.hideConnectionErrorDialog() },
+                                onSwitchToMock = { mainViewModel.switchToMockMode() }
                             )
                         }
                         composable("scheduler_list") {
