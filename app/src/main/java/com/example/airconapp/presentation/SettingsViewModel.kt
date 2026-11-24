@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.airconapp.di.NetworkModule
+import com.example.airconapp.data.discovery.DaikinDiscovery
 import com.example.airconapp.domain.SimpleModeLogic
 import com.example.airconapp.wallpanel.WallPanel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,6 +57,25 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setSimpleModeZone(zoneName: String) {
         _simpleModeZone.value = zoneName
+    }
+
+    /** Null when idle; otherwise the progress/result of the last "Find" (shown under the IP field). */
+    private val _discoveryStatus = MutableStateFlow<String?>(null)
+    val discoveryStatus: StateFlow<String?> = _discoveryStatus.asStateFlow()
+
+    /** Looks for the aircon on the network and fills in its IP (saved with Save Settings). */
+    fun findAircon() {
+        viewModelScope.launch {
+            _discoveryStatus.value = "Searching…"
+            val unit = DaikinDiscovery.discover().firstOrNull()
+            if (unit == null) {
+                _discoveryStatus.value = "No aircon found on this network"
+            } else {
+                _apiIp.value = "http://${unit.ip}"
+                _useMockMode.value = false
+                _discoveryStatus.value = "Found ${unit.name ?: "aircon"} at ${unit.ip}"
+            }
+        }
     }
 
     fun setApiIp(ip: String) {

@@ -52,8 +52,12 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
         get() = NetworkModule.airconApiService
 
     init {
-        fetchAirconStatus()
-        startPeriodicRefresh()
+        viewModelScope.launch {
+            // Fresh install: find the aircon on the network before the first fetch
+            NetworkModule.autoConfigureIfNeeded()
+            fetchAirconStatus()
+            startPeriodicRefresh()
+        }
     }
 
     private fun startPeriodicRefresh() {
@@ -85,10 +89,17 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
                 _zoneStatus.value = airconApiService.getZoneSetting().zones
                 // Ambient temperature is optional: a failure here must not hide the controls
                 _sensorInfo.value = runCatching { airconApiService.getSensorInfo() }.getOrNull()
-            } catch (e: ConnectionException) {
-                _showConnectionErrorDialog.value = true
             } catch (e: Exception) {
-                _error.value = "Failed to fetch aircon status: ${e.message}"
+                if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                // The aircon may have moved to a new IP: rediscover it and retry before
+                // bothering the user
+                if (NetworkModule.healConnection()) {
+                    fetchAirconStatus()
+                } else if (e is ConnectionException) {
+                    _showConnectionErrorDialog.value = true
+                } else {
+                    _error.value = "Failed to fetch aircon status: ${e.message}"
+                }
             } finally {
                 _isLoading.value = false
             }
