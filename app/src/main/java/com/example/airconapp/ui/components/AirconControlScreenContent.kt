@@ -233,12 +233,14 @@ fun PowerButton(isPoweredOn: Boolean, onPowerToggle: (String) -> Unit, modifier:
             .size(56.dp) // Smaller size
             .clip(CircleShape)
             .background(buttonColor),
-        colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = contentColor)
+        colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = contentColor),
+        // Default Button padding (24dp horizontal) leaves only 8dp for the icon in a 56dp circle
+        contentPadding = PaddingValues(0.dp)
     ) {
         Icon(
             imageVector = Icons.Default.PowerSettingsNew,
             contentDescription = if (isPoweredOn) "Turn Off" else "Turn On",
-            modifier = Modifier.size(52.dp)
+            modifier = Modifier.size(36.dp)
         )
     }
 }

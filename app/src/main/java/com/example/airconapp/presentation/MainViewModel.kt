@@ -5,8 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.example.airconapp.data.AirconApiService
 import com.example.airconapp.data.ConnectionException
 import com.example.airconapp.data.ControlInfo
+import com.example.airconapp.data.SensorInfo
 import com.example.airconapp.data.Zone
 import com.example.airconapp.di.NetworkModule
+import com.example.airconapp.domain.SimpleModeLogic
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -30,6 +32,18 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
 
     private val _showConnectionErrorDialog = MutableStateFlow(false)
     val showConnectionErrorDialog: StateFlow<Boolean> = _showConnectionErrorDialog
+
+    private val _sensorInfo = MutableStateFlow<SensorInfo?>(null)
+    val sensorInfo: StateFlow<SensorInfo?> = _sensorInfo
+
+    private val _simpleModeEnabled = MutableStateFlow(NetworkModule.getSimpleModeEnabled())
+    val simpleModeEnabled: StateFlow<Boolean> = _simpleModeEnabled
+
+    private val _simpleModeZone = MutableStateFlow(NetworkModule.getSimpleModeZone())
+    val simpleModeZone: StateFlow<String?> = _simpleModeZone
+
+    private val _simpleModeStartTemperature = MutableStateFlow(NetworkModule.getSimpleModeStartTemperature())
+    val simpleModeStartTemperature: StateFlow<Int> = _simpleModeStartTemperature
 
     private var refreshJob: Job? = null
 
@@ -63,9 +77,14 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
+            _simpleModeEnabled.value = NetworkModule.getSimpleModeEnabled()
+            _simpleModeZone.value = NetworkModule.getSimpleModeZone()
+            _simpleModeStartTemperature.value = NetworkModule.getSimpleModeStartTemperature()
             try {
                 _controlInfo.value = airconApiService.getControlInfo()
                 _zoneStatus.value = airconApiService.getZoneSetting().zones
+                // Ambient temperature is optional: a failure here must not hide the controls
+                _sensorInfo.value = runCatching { airconApiService.getSensorInfo() }.getOrNull()
             } catch (e: ConnectionException) {
                 _showConnectionErrorDialog.value = true
             } catch (e: Exception) {
@@ -154,6 +173,42 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
                 }
             } catch (e: Exception) {
                 _error.value = "Failed to set zone power: ${e.message}"
+                fetchAirconStatus()
+            }
+        }
+    }
+
+    /** Simple-mode button press; see [SimpleModeLogic] for the rules. */
+    fun toggleSimpleMode() {
+        val zoneName = _simpleModeZone.value ?: return
+        val currentInfo = _controlInfo.value ?: return
+        val currentZones = _zoneStatus.value ?: return
+        val action = SimpleModeLogic.toggle(
+            isPoweredOn = currentInfo.pow == "1",
+            zones = currentZones,
+            zoneName = zoneName,
+            startTemperature = _simpleModeStartTemperature.value
+        ) ?: return
+
+        viewModelScope.launch {
+            _error.value = null
+            try {
+                // Zones first, so the aircon never starts blowing into the wrong rooms
+                action.zones?.let { zones ->
+                    _zoneStatus.value = zones
+                    airconApiService.setZoneSetting(zones)
+                }
+                action.power?.let { power ->
+                    val newInfo = currentInfo.copy(
+                        pow = power,
+                        stemp = action.temperature ?: currentInfo.stemp,
+                        f_airside = action.airside ?: currentInfo.f_airside
+                    )
+                    _controlInfo.value = newInfo
+                    airconApiService.setControlInfo(newInfo)
+                }
+            } catch (e: Exception) {
+                _error.value = "Failed to toggle aircon: ${e.message}"
                 fetchAirconStatus()
             }
         }

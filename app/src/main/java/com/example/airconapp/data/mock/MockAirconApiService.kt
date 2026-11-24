@@ -2,6 +2,7 @@ package com.example.airconapp.data.mock
 
 import com.example.airconapp.data.AirconApiService
 import com.example.airconapp.data.ControlInfo
+import com.example.airconapp.data.SensorInfo
 import com.example.airconapp.data.Zone
 import com.example.airconapp.data.ZoneStatusResponse
 import kotlinx.coroutines.delay
@@ -14,7 +15,8 @@ class MockAirconApiService : AirconApiService {
         mode = "2", // Cool
         stemp = "23",
         f_rate = "3",
-        f_dir = "0"
+        f_dir = "0",
+        f_airside = "0"
     )
 
     private var mockZones = mutableListOf(
@@ -48,5 +50,10 @@ class MockAirconApiService : AirconApiService {
         delay(500) // Simulate network delay
         mockZones = zones.toMutableList()
         return "ret=OK"
+    }
+
+    override suspend fun getSensorInfo(): SensorInfo {
+        delay(500) // Simulate network delay
+        return SensorInfo(indoorTemp = "24", outdoorTemp = null)
     }
 }

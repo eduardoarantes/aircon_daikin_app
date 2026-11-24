@@ -6,6 +6,7 @@ import com.example.airconapp.data.AirconApiService
 import com.example.airconapp.data.AirconApiServiceImpl
 import com.example.airconapp.data.mock.MockAirconApiService
 import com.example.airconapp.data.db.AppDatabase
+import com.example.airconapp.domain.SimpleModeLogic
 import com.example.airconapp.data.repo.SchedulerRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
@@ -18,6 +19,9 @@ object NetworkModule {
     private const val PREFS_NAME = "aircon_app_prefs"
     private const val KEY_BASE_URL = "base_url"
     private const val KEY_USE_MOCK_API = "use_mock_api"
+    private const val KEY_SIMPLE_MODE_ENABLED = "simple_mode_enabled"
+    private const val KEY_SIMPLE_MODE_ZONE = "simple_mode_zone"
+    private const val KEY_SIMPLE_MODE_START_TEMP = "simple_mode_start_temp"
 
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var _applicationContext: Context
@@ -81,6 +85,29 @@ object NetworkModule {
         // Invalidate cached service instances
         _httpClient = null
         _airconApiService = null
+    }
+
+    fun getSimpleModeEnabled(): Boolean =
+        sharedPreferences.getBoolean(KEY_SIMPLE_MODE_ENABLED, false)
+
+    fun setSimpleModeEnabled(enabled: Boolean) {
+        sharedPreferences.edit().putBoolean(KEY_SIMPLE_MODE_ENABLED, enabled).apply()
+    }
+
+    /** Zone is stored by name: the API identifies zones only by position and name. */
+    fun getSimpleModeZone(): String? =
+        sharedPreferences.getString(KEY_SIMPLE_MODE_ZONE, null)
+
+    fun setSimpleModeZone(zoneName: String?) {
+        sharedPreferences.edit().putString(KEY_SIMPLE_MODE_ZONE, zoneName).apply()
+    }
+
+    /** Temperature set when simple mode turns the aircon on from off. */
+    fun getSimpleModeStartTemperature(): Int =
+        sharedPreferences.getInt(KEY_SIMPLE_MODE_START_TEMP, SimpleModeLogic.DEFAULT_START_TEMPERATURE)
+
+    fun setSimpleModeStartTemperature(temperature: Int) {
+        sharedPreferences.edit().putInt(KEY_SIMPLE_MODE_START_TEMP, temperature).apply()
     }
 
     val database: AppDatabase by lazy {
