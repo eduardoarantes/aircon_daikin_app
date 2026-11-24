@@ -11,6 +11,9 @@ import com.example.airconapp.di.NetworkModule
 import com.example.airconapp.domain.FanSpeed
 import com.example.airconapp.domain.SimpleModeLogic
 import com.example.airconapp.domain.ZoneUsage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +26,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
+
+/** How long after the user's last change it is sent to the unit. */
+private const val SEND_DELAY_MS = 2_000L
 
 class MainViewModel : ViewModel() { // Removed airconApiService from constructor
 
@@ -78,6 +84,11 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
     private var commandsInFlight = 0
     private var commandGeneration = 0
 
+    // Declared before init, which starts the first status poll that checks them
+    private val sendScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val controlSend = DelayedSend(_controlInfo) { airconApiService.setControlInfo(it) }
+    private val zoneSend = DelayedSend(_zoneStatus) { airconApiService.setZoneSetting(it) }
+
     private var refreshJob: Job? = null
 
     // Get the current API service from NetworkModule
@@ -108,6 +119,9 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
     override fun onCleared() {
         super.onCleared()
         refreshJob?.cancel()
+        // The screen is going away: send what the user just changed instead of dropping it
+        controlSend.flush()
+        zoneSend.flush()
     }
 
     fun fetchAirconStatus() {
@@ -124,7 +138,7 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
                 val zones = airconApiService.getZoneSetting().zones
                 // Ambient temperature is optional: a failure here must not hide the controls
                 _sensorInfo.value = runCatching { airconApiService.getSensorInfo() }.getOrNull()
-                if (commandsInFlight == 0 && generation == commandGeneration) {
+                if (commandsInFlight == 0 && generation == commandGeneration && !controlSend.busy && !zoneSend.busy) {
                     _controlInfo.value = info
                     _zoneStatus.value = zones
                 }
@@ -152,39 +166,67 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
     }
 
     /**
-     * Shows [update] at once, sends it, and on failure puts back what was there (unless
-     * something newer replaced it) and posts [failure] as a message.
+     * Sends user changes to the unit [SEND_DELAY_MS] after the last one, so a burst of taps
+     * becomes a single request carrying the final state (and changes that cancel out send
+     * nothing). The screen shows each change at once. If the send fails, the screen goes back
+     * to what the unit last had (unless something newer replaced it) and posts a message.
      */
-    private fun <T> sendCommand(
-        state: MutableStateFlow<T?>,
-        update: (T) -> T,
-        failure: String,
-        send: suspend (T) -> Unit
+    private inner class DelayedSend<T : Any>(
+        private val state: MutableStateFlow<T?>,
+        private val send: suspend (T) -> Unit
     ) {
-        val previous = state.value ?: return
-        val next = update(previous)
-        state.value = next
-        commandsInFlight++
-        commandGeneration++
-        viewModelScope.launch {
-            try {
-                send(next)
-            } catch (e: Exception) {
-                if (e is kotlin.coroutines.cancellation.CancellationException) throw e
-                if (state.value == next) state.value = previous
-                _error.value = "$failure: ${e.message}"
-                _messages.trySend(failure)
-            } finally {
-                commandsInFlight--
+        /** What the unit is known to have: where a failed send rolls back to. */
+        private var confirmed: T? = null
+        private var timer: Job? = null
+        private var sending = 0
+        private var failure = ""
+
+        /** A change is waiting or being sent; status polls must not overwrite it. */
+        val busy: Boolean get() = timer != null || sending > 0
+
+        fun change(failureMessage: String, update: (T) -> T) {
+            val current = state.value ?: return
+            if (!busy) confirmed = current
+            state.value = update(current)
+            failure = failureMessage
+            commandGeneration++
+            timer?.cancel()
+            timer = viewModelScope.launch {
+                delay(SEND_DELAY_MS)
+                timer = null
+                flush()
+            }
+        }
+
+        /** Sends the latest state now (also used when the screen closes). */
+        fun flush() {
+            timer?.cancel()
+            timer = null
+            val value = state.value ?: return
+            if (value == confirmed && sending == 0) return
+            val message = failure
+            sending++
+            // Not viewModelScope: a send must finish even if the screen closes meanwhile
+            sendScope.launch {
+                try {
+                    send(value)
+                    confirmed = value
+                } catch (e: Exception) {
+                    if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                    if (state.value == value) confirmed?.let { state.value = it }
+                    _error.value = "$message: ${e.message}"
+                    _messages.trySend(message)
+                } finally {
+                    sending--
+                    commandGeneration++
+                }
             }
         }
     }
 
-    private fun sendControl(failure: String, update: (ControlInfo) -> ControlInfo) =
-        sendCommand(_controlInfo, update, failure) { airconApiService.setControlInfo(it) }
+    private fun sendControl(failure: String, update: (ControlInfo) -> ControlInfo) = controlSend.change(failure, update)
 
-    private fun sendZones(failure: String, update: (List<Zone>) -> List<Zone>) =
-        sendCommand(_zoneStatus, update, failure) { airconApiService.setZoneSetting(it) }
+    private fun sendZones(failure: String, update: (List<Zone>) -> List<Zone>) = zoneSend.change(failure, update)
 
     fun setPower(isOn: Boolean) =
         sendControl("Couldn't turn the aircon ${if (isOn) "on" else "off"}") { it.copy(pow = if (isOn) "1" else "0") }
