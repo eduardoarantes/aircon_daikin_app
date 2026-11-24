@@ -51,4 +51,35 @@ class FanSpeedTest {
         assertNull(sent.f_auto)
         assertNull(sent.f_airside)
     }
+
+    // A schedule saved by the old editor: f_rate "A" or 1–5, no flags
+    private val oldSchedule = ControlInfo(pow = "1", mode = "2", stemp = "23", f_rate = "A", f_dir = "0")
+
+    @Test
+    fun `old schedules map to the new options`() {
+        assertEquals(FanSpeed.AUTO, FanSpeed.ofSchedule(oldSchedule))
+        assertEquals(FanSpeed.LOW, FanSpeed.ofSchedule(oldSchedule.copy(f_rate = "1")))
+        assertEquals(FanSpeed.LOW, FanSpeed.ofSchedule(oldSchedule.copy(f_rate = "2")))
+        assertEquals(FanSpeed.MEDIUM, FanSpeed.ofSchedule(oldSchedule.copy(f_rate = "3")))
+        assertEquals(FanSpeed.HIGH, FanSpeed.ofSchedule(oldSchedule.copy(f_rate = "4")))
+        assertEquals(FanSpeed.HIGH, FanSpeed.ofSchedule(oldSchedule.copy(f_rate = "5")))
+    }
+
+    @Test
+    fun `saving a schedule writes values the unit accepts`() {
+        val auto = FanSpeed.applyToSchedule(oldSchedule, FanSpeed.AUTO)
+        assertEquals("1", auto.f_auto)
+        assertEquals("0", auto.f_airside)
+        assertEquals("3", auto.f_rate)
+
+        val high = FanSpeed.applyToSchedule(oldSchedule.copy(f_rate = "4"), FanSpeed.HIGH)
+        assertEquals("5", high.f_rate)
+        assertEquals("0", high.f_auto)
+        assertEquals("0", high.f_airside)
+
+        val airside = FanSpeed.applyToSchedule(oldSchedule, FanSpeed.AIRSIDE)
+        assertEquals("1", airside.f_airside)
+        assertEquals("0", airside.f_auto)
+        assertEquals(FanSpeed.AIRSIDE, FanSpeed.ofSchedule(airside))
+    }
 }

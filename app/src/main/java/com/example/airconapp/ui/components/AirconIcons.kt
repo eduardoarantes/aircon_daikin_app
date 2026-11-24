@@ -49,6 +49,12 @@ object AirconIcons {
 
     val ChevronRight = icon("ChevronRight", 2f, "M9 6l6 6-6 6")
 
+    val Trash = icon("Trash", 1.8f, "M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3")
+
+    val Close = icon("Close", 2f, "M6 6l12 12M18 6L6 18")
+
+    val Check = icon("Check", 2.6f, "M5 12.5l4.5 4.5L19 7.5")
+
     val NavControls = icon(
         "NavControls", 1.8f,
         "M4 7h10M18 7h2M4 17h2M10 17h10", circle(16f, 7f, 2f), circle(8f, 17f, 2f)

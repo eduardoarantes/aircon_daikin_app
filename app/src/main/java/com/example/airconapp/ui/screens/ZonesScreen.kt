@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.airconapp.data.Zone
 import com.example.airconapp.presentation.MainViewModel
+import com.example.airconapp.ui.components.AccentSwitch
 import com.example.airconapp.ui.components.AirconIcons
 import com.example.airconapp.ui.theme.AirconColors
 
@@ -150,29 +151,7 @@ private fun ZoneCard(zone: Zone, accent: Color, textAccent: Color, enabled: Bool
             Text(zone.name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = AirconColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             ZoneStatusText(zone.isOn, textAccent, fontSize = 13)
         }
-        ZoneSwitch(zone.isOn, accent)
-    }
-}
-
-/** 56×34dp track with a 28dp knob. The whole card is the touch target. */
-@Composable
-private fun ZoneSwitch(isOn: Boolean, accent: Color) {
-    val track by animateColorAsState(if (isOn) accent else AirconColors.Outline, tween(200), label = "track")
-    val knob by animateColorAsState(if (isOn) AirconColors.OnAccent else AirconColors.SwitchKnobOff, tween(200), label = "knob")
-    val knobOffset by animateDpAsState(if (isOn) 22.dp else 0.dp, tween(200), label = "knobOffset")
-    Box(
-        modifier = Modifier
-            .size(width = 56.dp, height = 34.dp)
-            .background(track, RoundedCornerShape(17.dp))
-            .padding(3.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .offset(x = knobOffset)
-                .size(28.dp)
-                .shadow(2.dp, CircleShape)
-                .background(knob, CircleShape)
-        )
+        AccentSwitch(zone.isOn, accent)
     }
 }
 

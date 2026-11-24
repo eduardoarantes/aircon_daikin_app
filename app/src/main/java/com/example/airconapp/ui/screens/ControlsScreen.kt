@@ -54,6 +54,8 @@ import com.example.airconapp.domain.FanSpeed
 import com.example.airconapp.presentation.MainViewModel
 import com.example.airconapp.ui.components.AirconIcons
 import com.example.airconapp.ui.components.DialSlider
+import com.example.airconapp.ui.components.FanSegments
+import com.example.airconapp.ui.components.ModeTiles
 import com.example.airconapp.ui.components.TemperatureRing
 import com.example.airconapp.ui.theme.AirconColors
 import com.example.airconapp.ui.theme.SpaceGrotesk
@@ -187,48 +189,14 @@ private fun PowerButton(isOn: Boolean, enabled: Boolean, onClick: () -> Unit) {
 
 @Composable
 private fun ModeRow(info: ControlInfo, accent: Color, enabled: Boolean, onSelect: (AirconMode) -> Unit) {
-    val current = AirconMode.of(info.mode)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 12.dp)
-            .selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        AirconMode.entries.forEach { mode ->
-            val selected = mode == current
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(18.dp))
-                    .selectable(selected = selected, enabled = enabled, role = Role.Tab, onClick = { onSelect(mode) }),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                val shape = RoundedCornerShape(18.dp)
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .background(if (selected) accent else AirconColors.Surface, shape)
-                        .border(1.dp, if (selected) accent else AirconColors.Outline, shape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        mode.icon,
-                        contentDescription = null,
-                        tint = if (selected) AirconColors.OnAccent else AirconColors.TextSecondary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-                Text(
-                    mode.label,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (selected) textAccent(info.pow == "1", accent) else AirconColors.TextMuted
-                )
-            }
-        }
-    }
+    ModeTiles(
+        selected = AirconMode.of(info.mode),
+        accent = accent,
+        labelAccent = textAccent(info.pow == "1", accent),
+        enabled = enabled,
+        onSelect = onSelect,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)
+    )
 }
 
 @Composable
@@ -369,35 +337,7 @@ private fun FanSpeedCard(info: ControlInfo, accent: Color, enabled: Boolean, onS
                 Text("Fan speed", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = AirconColors.TextPrimary, modifier = Modifier.weight(1f))
                 Text(current?.label ?: "—", fontSize = 13.sp, color = AirconColors.TextMuted)
             }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(AirconColors.Background, RoundedCornerShape(14.dp))
-                    .padding(4.dp)
-                    .selectableGroup(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                FanSpeed.available(info).forEach { speed ->
-                    val selected = speed == current
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (selected) accent else Color.Transparent)
-                            .selectable(selected = selected, enabled = enabled, role = Role.Tab, onClick = { onSelect(speed) }),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            speed.shortLabel,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (selected) AirconColors.OnAccent else AirconColors.TextSecondary,
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
+            FanSegments(FanSpeed.available(info), current, accent, enabled, onSelect)
         }
     }
 }

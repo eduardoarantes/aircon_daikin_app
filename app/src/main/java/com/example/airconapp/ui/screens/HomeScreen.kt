@@ -38,7 +38,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.airconapp.data.ControlInfo
+import com.example.airconapp.data.db.SchedulerProfile
 import com.example.airconapp.presentation.MainViewModel
+import com.example.airconapp.presentation.SchedulerViewModel
 import com.example.airconapp.ui.components.AirconIcons
 import com.example.airconapp.ui.theme.AirconColors
 import com.example.airconapp.ui.theme.Inter
@@ -62,17 +64,23 @@ fun accentFor(info: ControlInfo?): Color {
     return if (info?.pow == "1" && mode != null) mode.accent else AirconColors.Disabled
 }
 
-private enum class HomeTab { Controls, Zones }
+private enum class HomeTab { Controls, Zones, Schedules }
 
-/** The full (non-simple) app: Controls and Zones tabs; Schedules and Settings open their screens. */
+/**
+ * The full (non-simple) app: Controls, Zones and Schedules tabs. Adding or editing a schedule
+ * and Settings open their own screens.
+ */
 @Composable
 fun HomeScreen(
     viewModel: MainViewModel,
-    onOpenSchedules: () -> Unit,
+    schedulerViewModel: SchedulerViewModel,
+    onAddSchedule: () -> Unit,
+    onEditSchedule: (SchedulerProfile) -> Unit,
     onOpenSettings: () -> Unit
 ) {
     var tab by rememberSaveable { mutableStateOf(HomeTab.Controls) }
-    BackHandler(enabled = tab == HomeTab.Zones) { tab = HomeTab.Controls }
+    BackHandler(enabled = tab != HomeTab.Controls) { tab = HomeTab.Controls }
+    val schedules by schedulerViewModel.allProfiles.collectAsState()
 
     val controlInfo by viewModel.controlInfo.collectAsState()
     val accent by animateColorAsState(accentFor(controlInfo), tween(200), label = "accent")
@@ -97,7 +105,6 @@ fun HomeScreen(
                 selected = tab,
                 accent = navAccent,
                 onSelect = { tab = it },
-                onOpenSchedules = onOpenSchedules,
                 onOpenSettings = onOpenSettings
             )
         }
@@ -105,7 +112,15 @@ fun HomeScreen(
         val modifier = Modifier.padding(padding)
         when (tab) {
             HomeTab.Controls -> ControlsScreen(viewModel, accent, onOpenZones = { tab = HomeTab.Zones }, modifier = modifier)
-            HomeTab.Zones -> ZonesScreen(viewModel, accent, onOpenSchedules = onOpenSchedules, modifier = modifier)
+            HomeTab.Zones -> ZonesScreen(viewModel, accent, onOpenSchedules = { tab = HomeTab.Schedules }, modifier = modifier)
+            HomeTab.Schedules -> SchedulesScreen(
+                schedules = schedules,
+                onAdd = onAddSchedule,
+                onEdit = onEditSchedule,
+                onSetActive = { schedule, active -> schedulerViewModel.update(schedule.copy(isActive = active)) },
+                onDelete = { schedulerViewModel.delete(it) },
+                modifier = modifier
+            )
         }
     }
     }
@@ -116,7 +131,6 @@ private fun BottomNav(
     selected: HomeTab,
     accent: Color,
     onSelect: (HomeTab) -> Unit,
-    onOpenSchedules: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     Row(
@@ -131,7 +145,7 @@ private fun BottomNav(
         val item = Modifier.weight(1f)
         NavItem("Controls", AirconIcons.NavControls, selected == HomeTab.Controls, accent, item) { onSelect(HomeTab.Controls) }
         NavItem("Zones", AirconIcons.NavZones, selected == HomeTab.Zones, accent, item) { onSelect(HomeTab.Zones) }
-        NavItem("Schedules", AirconIcons.Calendar, false, accent, item, onOpenSchedules)
+        NavItem("Schedules", AirconIcons.Calendar, selected == HomeTab.Schedules, accent, item) { onSelect(HomeTab.Schedules) }
         NavItem("Settings", AirconIcons.Settings, false, accent, item, onOpenSettings)
     }
 }

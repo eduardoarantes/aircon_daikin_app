@@ -16,21 +16,18 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.airconapp.data.db.SchedulerProfile
 import com.example.airconapp.di.NetworkModule
 import com.example.airconapp.presentation.MainViewModel
 import com.example.airconapp.presentation.SchedulerViewModel
 import com.example.airconapp.presentation.SettingsViewModel
 import com.example.airconapp.ui.components.ConnectionErrorDialog
 import com.example.airconapp.ui.components.SimpleModeScreenContent
-import com.example.airconapp.ui.screens.AddEditScheduleScreen
 import com.example.airconapp.ui.screens.HomeScreen
-import com.example.airconapp.ui.screens.SchedulerScreen
+import com.example.airconapp.ui.screens.ScheduleEditScreen
 import com.example.airconapp.ui.screens.SettingsScreen
 import com.example.airconapp.ui.theme.AirconAppTheme
 import com.example.airconapp.wallpanel.WallPanel
 import android.view.WindowManager
-import com.google.gson.Gson
 import com.example.airconapp.scheduler.ScheduleManager
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.first
@@ -78,6 +75,7 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     // One view model (and one status poll) shared by every screen
                     val mainViewModel: MainViewModel = viewModel()
+                    val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.factory(application))
                     // Home button on a wall panel always returns to the control screen
                     val homePressCount by homePresses.collectAsState()
                     androidx.compose.runtime.LaunchedEffect(homePressCount) {
@@ -141,7 +139,9 @@ class MainActivity : ComponentActivity() {
                             } else {
                                 HomeScreen(
                                     viewModel = mainViewModel,
-                                    onOpenSchedules = { navController.navigate("scheduler_list") },
+                                    schedulerViewModel = schedulerViewModel,
+                                    onAddSchedule = { navController.navigate("schedule_edit/-1") },
+                                    onEditSchedule = { navController.navigate("schedule_edit/${it.id}") },
                                     onOpenSettings = { navController.navigate("settings") }
                                 )
                                 if (showConnectionErrorDialog) {
@@ -152,44 +152,33 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
-                        composable("scheduler_list") {
-                            val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.factory(application))
-                            val currentZones by mainViewModel.zoneStatus.collectAsState()
-                            SchedulerScreen(
-                                viewModel = schedulerViewModel,
-                                availableZones = currentZones ?: emptyList(),
-                                onNavigateToAddEditSchedule = { navController.navigate("add_edit_schedule") },
-                                onNavigateToEditSchedule = { schedule ->
-                                    val scheduleJson = Gson().toJson(schedule)
-                                    navController.navigate("add_edit_schedule_json/$scheduleJson")
-                                },
-                                onNavigateBack = { navController.popBackStack() }
-                            )
-                        }
+                        // New schedule (id -1) or edit an existing one
                         composable(
-                            "add_edit_schedule_json/{scheduleJson}",
-                            arguments = listOf(navArgument("scheduleJson") { type = NavType.StringType; nullable = true })
-                        ) {
-                            val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.factory(application))
-                            val scheduleJson = it.arguments?.getString("scheduleJson")
-                            val schedule = if (scheduleJson != null) Gson().fromJson(scheduleJson, SchedulerProfile::class.java) else null
+                            "schedule_edit/{id}",
+                            arguments = listOf(navArgument("id") { type = NavType.IntType })
+                        ) { entry ->
+                            val id = entry.arguments?.getInt("id") ?: -1
                             val currentZones by mainViewModel.zoneStatus.collectAsState()
-                            AddEditScheduleScreen(
-                                viewModel = schedulerViewModel,
-                                schedule = schedule,
-                                availableZones = currentZones ?: emptyList(), // Pass available zones
-                                onNavigateBack = { navController.popBackStack() }
-                            )
-                        }
-                        composable("add_edit_schedule") {
-                            val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.factory(application))
-                            val currentZones by mainViewModel.zoneStatus.collectAsState()
-                            AddEditScheduleScreen(
-                                viewModel = schedulerViewModel,
-                                schedule = null,
-                                availableZones = currentZones ?: emptyList(), // Pass available zones
-                                onNavigateBack = { navController.popBackStack() }
-                            )
+                            val loaded by schedulerViewModel.profileToEdit.collectAsState()
+                            androidx.compose.runtime.LaunchedEffect(id) {
+                                if (id >= 0) schedulerViewModel.loadProfile(id) else schedulerViewModel.clearProfileToEdit()
+                            }
+                            // Wait for the saved schedule before building the form from it
+                            if (id < 0 || loaded?.id == id) {
+                                ScheduleEditScreen(
+                                    schedule = if (id < 0) null else loaded,
+                                    deviceZones = currentZones.orEmpty(),
+                                    onSave = { profile ->
+                                        if (id < 0) schedulerViewModel.insert(profile) else schedulerViewModel.update(profile)
+                                        navController.popBackStack()
+                                    },
+                                    onDelete = { profile ->
+                                        schedulerViewModel.delete(profile)
+                                        navController.popBackStack()
+                                    },
+                                    onClose = { navController.popBackStack() }
+                                )
+                            }
                         }
                         composable("settings") {
                             val settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.factory(application))
