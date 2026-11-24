@@ -16,3 +16,6 @@ local.properties
 
 # Crash dumps
 *.hprof
+
+# VS Code local history (may contain copies of secrets)
+.history/

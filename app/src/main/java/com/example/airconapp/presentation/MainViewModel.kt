@@ -89,6 +89,8 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
                 _zoneStatus.value = airconApiService.getZoneSetting().zones
                 // Ambient temperature is optional: a failure here must not hide the controls
                 _sensorInfo.value = runCatching { airconApiService.getSensorInfo() }.getOrNull()
+                // Connection is back (e.g. Wi-Fi came up after boot): drop any stale error
+                _showConnectionErrorDialog.value = false
             } catch (e: Exception) {
                 if (e is kotlin.coroutines.cancellation.CancellationException) throw e
                 // The aircon may have moved to a new IP: rediscover it and retry before

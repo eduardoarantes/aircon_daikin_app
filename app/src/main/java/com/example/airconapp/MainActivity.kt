@@ -112,9 +112,7 @@ class MainActivity : ComponentActivity() {
                                     onNavigateToSettings = {
                                         WallPanel.runAfterUnlock(this@MainActivity) { navController.navigate("settings") }
                                     },
-                                    showConnectionErrorDialog = showConnectionErrorDialog,
-                                    onConfirmConnectionError = { mainViewModel.hideConnectionErrorDialog() },
-                                    onSwitchToMock = { mainViewModel.switchToMockMode() }
+                                    isDisconnected = showConnectionErrorDialog
                                 )
                             } else AirconControlScreenContent(
                                 controlInfo = controlInfo,

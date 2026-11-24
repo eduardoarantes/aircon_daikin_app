@@ -61,15 +61,11 @@ fun SimpleModeScreenContent(
     error: String?,
     onToggle: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    showConnectionErrorDialog: Boolean,
-    onConfirmConnectionError: () -> Unit,
-    onSwitchToMock: () -> Unit,
+    isDisconnected: Boolean,
     modifier: Modifier = Modifier
 ) {
-    if (showConnectionErrorDialog) {
-        ConnectionErrorDialog(onDismiss = onConfirmConnectionError, onSwitchToMock = onSwitchToMock)
-    }
-
+    // No "switch to mock" dialog here: nobody at a wall panel should answer it. The periodic
+    // refresh keeps retrying (e.g. Wi-Fi still connecting after boot) and this clears itself.
     // Always dark: black background, outlined text, outlined power button
     HiddenStatusBar()
 
@@ -117,7 +113,10 @@ fun SimpleModeScreenContent(
             TemperatureCard(label = "Room", value = sensorInfo?.indoorTemp, modifier = Modifier.weight(1f))
         }
 
-        if (error != null) {
+        if (isDisconnected) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = "Connecting to aircon…", style = darkStyle(MaterialTheme.typography.bodyMedium))
+        } else if (error != null) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = error, color = MaterialTheme.colorScheme.error)
         }
@@ -257,9 +256,7 @@ private fun SimpleModeScreenPreview() {
             error = null,
             onToggle = {},
             onNavigateToSettings = {},
-            showConnectionErrorDialog = false,
-            onConfirmConnectionError = {},
-            onSwitchToMock = {}
+            isDisconnected = false
         )
     }
 }
