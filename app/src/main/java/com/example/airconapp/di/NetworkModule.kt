@@ -27,6 +27,7 @@ object NetworkModule {
     private const val KEY_SIMPLE_MODE_ZONE = "simple_mode_zone"
     private const val KEY_SIMPLE_MODE_START_TEMP = "simple_mode_start_temp"
     private const val KEY_WALL_PANEL_ENABLED = "wall_panel_enabled"
+    private const val KEY_ZONE_USAGE = "zone_usage"
 
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var _applicationContext: Context
@@ -113,6 +114,13 @@ object NetworkModule {
 
     fun setWallPanelEnabled(enabled: Boolean) {
         sharedPreferences.edit().putBoolean(KEY_WALL_PANEL_ENABLED, enabled).apply()
+    }
+
+    /** Zone toggle history for "Most used zones", encoded by [com.example.airconapp.domain.ZoneUsage.encode]. */
+    fun getZoneUsage(): String? = sharedPreferences.getString(KEY_ZONE_USAGE, null)
+
+    fun setZoneUsage(encoded: String) {
+        sharedPreferences.edit().putString(KEY_ZONE_USAGE, encoded).apply()
     }
 
     /** True when the app should behave as a wall panel rather than a normal app. */

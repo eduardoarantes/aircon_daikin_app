@@ -22,7 +22,9 @@ data class ControlInfo(
     val f_rate: String,
     val f_dir: String,
     // Daikin SkyFi "airside" fan flag ("1" = on). Not in swagger.yaml; null when unknown.
-    val f_airside: String? = null
+    val f_airside: String? = null,
+    // AirBase automatic fan flag ("1" = auto, f_rate then keeps the last manual speed); null when unknown.
+    val f_auto: String? = null
 )
 
 @Serializable
@@ -69,7 +71,8 @@ class AirconApiServiceImpl(private val client: HttpClient, private val baseUrl: 
     override suspend fun setControlInfo(controlInfo: ControlInfo): String {
         try {
             val queryString = "pow=${controlInfo.pow}&mode=${controlInfo.mode}&stemp=${controlInfo.stemp}&f_rate=${controlInfo.f_rate}&f_dir=${controlInfo.f_dir}" +
-                (controlInfo.f_airside?.let { "&f_airside=$it" } ?: "")
+                (controlInfo.f_airside?.let { "&f_airside=$it" } ?: "") +
+                (controlInfo.f_auto?.let { "&f_auto=$it" } ?: "")
             val response = client.post {
                 url("$baseUrl/skyfi/aircon/set_control_info?$queryString")
                 contentType(ContentType.Text.Plain)
@@ -150,7 +153,8 @@ class AirconApiServiceImpl(private val client: HttpClient, private val baseUrl: 
             stemp = parts["stemp"] ?: "",
             f_rate = parts["f_rate"] ?: "",
             f_dir = parts["f_dir"] ?: "",
-            f_airside = parts["f_airside"]
+            f_airside = parts["f_airside"],
+            f_auto = parts["f_auto"]
         )
     }
 

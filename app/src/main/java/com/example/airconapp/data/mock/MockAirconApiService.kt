@@ -16,7 +16,8 @@ class MockAirconApiService : AirconApiService {
         stemp = "23",
         f_rate = "3",
         f_dir = "0",
-        f_airside = "0"
+        f_airside = "0",
+        f_auto = "0"
     )
 
     private var mockZones = mutableListOf(

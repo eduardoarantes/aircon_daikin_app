@@ -21,9 +21,10 @@ import com.example.airconapp.di.NetworkModule
 import com.example.airconapp.presentation.MainViewModel
 import com.example.airconapp.presentation.SchedulerViewModel
 import com.example.airconapp.presentation.SettingsViewModel
-import com.example.airconapp.ui.components.AirconControlScreenContent
+import com.example.airconapp.ui.components.ConnectionErrorDialog
 import com.example.airconapp.ui.components.SimpleModeScreenContent
 import com.example.airconapp.ui.screens.AddEditScheduleScreen
+import com.example.airconapp.ui.screens.HomeScreen
 import com.example.airconapp.ui.screens.SchedulerScreen
 import com.example.airconapp.ui.screens.SettingsScreen
 import com.example.airconapp.ui.theme.AirconAppTheme
@@ -75,6 +76,8 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
+                    // One view model (and one status poll) shared by every screen
+                    val mainViewModel: MainViewModel = viewModel()
                     // Home button on a wall panel always returns to the control screen
                     val homePressCount by homePresses.collectAsState()
                     androidx.compose.runtime.LaunchedEffect(homePressCount) {
@@ -82,10 +85,8 @@ class MainActivity : ComponentActivity() {
                     }
                     NavHost(navController = navController, startDestination = "main_control") {
                         composable("main_control") {
-                            val mainViewModel: MainViewModel = viewModel()
                             val controlInfo by mainViewModel.controlInfo.collectAsState()
                             val zoneStatus by mainViewModel.zoneStatus.collectAsState()
-                            val isLoading by mainViewModel.isLoading.collectAsState()
                             val error by mainViewModel.error.collectAsState()
                             val showConnectionErrorDialog by mainViewModel.showConnectionErrorDialog.collectAsState()
                             val sensorInfo by mainViewModel.sensorInfo.collectAsState()
@@ -120,6 +121,8 @@ class MainActivity : ComponentActivity() {
                                         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                                     }
                                 }
+                                // The wall panel keeps its original look: Material's default type, not Inter
+                                MaterialTheme(typography = androidx.compose.material3.Typography()) {
                                 SimpleModeScreenContent(
                                     controlInfo = controlInfo,
                                     zoneStatus = zoneStatus,
@@ -134,26 +137,23 @@ class MainActivity : ComponentActivity() {
                                     },
                                     isDisconnected = showConnectionErrorDialog
                                 )
-                            } else AirconControlScreenContent(
-                                controlInfo = controlInfo,
-                                zoneStatus = zoneStatus,
-                                isLoading = isLoading,
-                                error = error,
-                                onPowerToggle = { power -> mainViewModel.setPower(power) },
-                                onSetTemperature = { temp -> mainViewModel.setTemperature(temp) },
-                                onSetMode = { mode -> mainViewModel.setMode(mode) },
-                                onSetFanRate = { fanRate -> mainViewModel.setFanRate(fanRate) },
-                                onSetZonePower = { index, isOn -> mainViewModel.setZonePower(index, isOn) },
-                                onNavigateToScheduler = { navController.navigate("scheduler_list") },
-                                onNavigateToSettings = { navController.navigate("settings") },
-                                showConnectionErrorDialog = showConnectionErrorDialog,
-                                onConfirmConnectionError = { mainViewModel.hideConnectionErrorDialog() },
-                                onSwitchToMock = { mainViewModel.switchToMockMode() }
-                            )
+                                }
+                            } else {
+                                HomeScreen(
+                                    viewModel = mainViewModel,
+                                    onOpenSchedules = { navController.navigate("scheduler_list") },
+                                    onOpenSettings = { navController.navigate("settings") }
+                                )
+                                if (showConnectionErrorDialog) {
+                                    ConnectionErrorDialog(
+                                        onDismiss = { mainViewModel.hideConnectionErrorDialog() },
+                                        onSwitchToMock = { mainViewModel.switchToMockMode() }
+                                    )
+                                }
+                            }
                         }
                         composable("scheduler_list") {
                             val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.factory(application))
-                            val mainViewModel: MainViewModel = viewModel()
                             val currentZones by mainViewModel.zoneStatus.collectAsState()
                             SchedulerScreen(
                                 viewModel = schedulerViewModel,
@@ -173,7 +173,6 @@ class MainActivity : ComponentActivity() {
                             val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.factory(application))
                             val scheduleJson = it.arguments?.getString("scheduleJson")
                             val schedule = if (scheduleJson != null) Gson().fromJson(scheduleJson, SchedulerProfile::class.java) else null
-                            val mainViewModel: MainViewModel = viewModel() // Get MainViewModel to access zoneStatus
                             val currentZones by mainViewModel.zoneStatus.collectAsState()
                             AddEditScheduleScreen(
                                 viewModel = schedulerViewModel,
@@ -184,7 +183,6 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("add_edit_schedule") {
                             val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.factory(application))
-                            val mainViewModel: MainViewModel = viewModel() // Get MainViewModel to access zoneStatus
                             val currentZones by mainViewModel.zoneStatus.collectAsState()
                             AddEditScheduleScreen(
                                 viewModel = schedulerViewModel,
@@ -198,7 +196,11 @@ class MainActivity : ComponentActivity() {
                             SettingsScreen(
                                 viewModel = settingsViewModel,
                                 onNavigateBack = { navController.popBackStack() },
-                                onSettingsSaved = { navController.navigate("main_control") { popUpTo("main_control") { inclusive = true } } }
+                                onSettingsSaved = {
+                                    // Pick up simple mode / wall panel changes now, not at the next poll
+                                    mainViewModel.fetchAirconStatus()
+                                    navController.navigate("main_control") { popUpTo("main_control") { inclusive = true } }
+                                }
                             )
                         }
                     }
