@@ -287,7 +287,7 @@ private fun KioskSection() {
                     )
                 }
                 Text(
-                    "4. Reopen this app. It locks in by itself, and this section offers the release button.",
+                    "4. Restart the phone. It comes back locked in this app, and this section then offers the release button.",
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
