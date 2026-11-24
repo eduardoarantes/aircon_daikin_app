@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -208,18 +211,9 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
                 }
             }
 
-            // Only offered once the app was made device owner (full kiosk) via adb
-            var isDeviceOwner by remember { mutableStateOf(WallPanel.isDeviceOwner(context)) }
-            if (isDeviceOwner) {
-                OutlinedButton(
-                    onClick = {
-                        (context as? Activity)?.let { WallPanel.releaseDeviceOwner(it) }
-                        isDeviceOwner = WallPanel.isDeviceOwner(context)
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Release kiosk (device owner)", color = MaterialTheme.colorScheme.error)
-                }
+            // Full kiosk: how to turn it on (via adb) or, once on, how to release it
+            if (simpleModeEnabled || WallPanel.isDeviceOwner(context)) {
+                KioskSection()
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -233,6 +227,69 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Save Settings")
+            }
+        }
+    }
+}
+/** adb command that makes this app the device owner, which turns on the full kiosk. */
+private const val DEVICE_OWNER_COMMAND =
+    "adb shell dpm set-device-owner com.example.airconapp/.wallpanel.WallPanelAdminReceiver"
+
+/**
+ * Explains the full kiosk (device owner). It can only be switched on from a computer with adb,
+ * so this shows the steps; once it is on, it offers the only way back out short of a factory reset.
+ */
+@Composable
+private fun KioskSection() {
+    val context = LocalContext.current
+    var isDeviceOwner by remember { mutableStateOf(WallPanel.isDeviceOwner(context)) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Full kiosk", style = MaterialTheme.typography.titleMedium)
+            if (isDeviceOwner) {
+                Text(
+                    "On. The phone stays locked in this app after every reboot, with no " +
+                        "\"Screen is pinned\" prompt. Home, Recents and the notification shade are blocked.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    "While this is on, the app can't be uninstalled. Release it here before " +
+                        "uninstalling or giving the phone another use; otherwise only a factory reset removes it.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                OutlinedButton(
+                    onClick = {
+                        (context as? Activity)?.let { WallPanel.releaseDeviceOwner(it) }
+                        isDeviceOwner = WallPanel.isDeviceOwner(context)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Release kiosk (device owner)", color = MaterialTheme.colorScheme.error)
+                }
+            } else {
+                Text(
+                    "Off. Simple mode uses screen pinning, which asks \"Screen is pinned\" after each " +
+                        "reboot and can be exited by holding Back and Recents. The full kiosk removes both.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text("To turn it on:", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "1. Remove every account from the phone (Settings > Accounts). Android refuses otherwise.\n" +
+                        "2. Turn on USB debugging (Settings > System > Developer options).\n" +
+                        "3. Connect the phone to a computer with adb and run:",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                SelectionContainer {
+                    Text(
+                        DEVICE_OWNER_COMMAND,
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+                    )
+                }
+                Text(
+                    "4. Reopen this app. It locks in by itself, and this section offers the release button.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
         }
     }
