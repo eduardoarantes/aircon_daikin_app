@@ -45,19 +45,19 @@ class MainActivity : ComponentActivity() {
         if (intent.hasCategory(android.content.Intent.CATEGORY_HOME)) homePresses.value++
     }
 
-    /** The wall panel stays silent: the volume buttons do nothing while simple mode is on. */
+    /** The wall panel stays silent: the volume buttons do nothing while it is active. */
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
         val isVolumeKey = event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP ||
             event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN ||
             event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_MUTE
-        if (isVolumeKey && NetworkModule.getSimpleModeEnabled()) return true
+        if (isVolumeKey && NetworkModule.isWallPanelActive()) return true
         return super.dispatchKeyEvent(event)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         NetworkModule.initialize(applicationContext)
-        WallPanel.setHomeAppEnabled(this, NetworkModule.getSimpleModeEnabled())
+        WallPanel.setHomeAppEnabled(this, NetworkModule.isWallPanelActive())
 
         // Schedule existing profiles
         lifecycleScope.launch {
@@ -90,14 +90,16 @@ class MainActivity : ComponentActivity() {
                             val showConnectionErrorDialog by mainViewModel.showConnectionErrorDialog.collectAsState()
                             val sensorInfo by mainViewModel.sensorInfo.collectAsState()
                             val simpleModeEnabled by mainViewModel.simpleModeEnabled.collectAsState()
+                            val wallPanelEnabled by mainViewModel.wallPanelEnabled.collectAsState()
+                            val wallPanelActive = simpleModeEnabled && wallPanelEnabled
                             val simpleModeZone by mainViewModel.simpleModeZone.collectAsState()
                             val simpleModeStartTemperature by mainViewModel.simpleModeStartTemperature.collectAsState()
 
-                            // Simple mode keeps the user in the app; turning it off releases the lock
-                            androidx.compose.runtime.LaunchedEffect(simpleModeEnabled) {
-                                if (simpleModeEnabled) WallPanel.startKiosk(this@MainActivity)
+                            // As a wall panel the app keeps the user inside it; otherwise it runs as a normal app
+                            androidx.compose.runtime.LaunchedEffect(wallPanelActive) {
+                                if (wallPanelActive) WallPanel.startKiosk(this@MainActivity)
                                 else WallPanel.stopKiosk(this@MainActivity)
-                                if (simpleModeEnabled) {
+                                if (wallPanelActive) {
                                     // Re-applied regularly in case something turned sound back on
                                     while (true) {
                                         WallPanel.enforceSilence(this@MainActivity)
@@ -110,7 +112,7 @@ class MainActivity : ComponentActivity() {
 
                             if (simpleModeEnabled) {
                                 // Wall-panel behaviour, only while this screen is showing
-                                DisposableEffect(Unit) {
+                                if (wallPanelActive) DisposableEffect(Unit) {
                                     WallPanel.setShowOnLockScreen(this@MainActivity, true)
                                     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                                     onDispose {

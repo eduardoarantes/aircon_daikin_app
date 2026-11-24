@@ -126,13 +126,14 @@ object WallPanel {
         runCatching { activity.startLockTask() }
     }
 
-    /** Leaves kiosk mode (used when simple mode is turned off). */
+    /** Leaves kiosk mode (used when the wall panel is turned off). */
     fun stopKiosk(activity: Activity) {
-        if (!isInLockTask(activity)) return
+        // Drop the forced home app even when not locked, so the phone's own launcher comes back
         if (isDeviceOwner(activity)) {
             activity.getSystemService(DevicePolicyManager::class.java)
                 .clearPackagePersistentPreferredActivities(adminComponent(activity), activity.packageName)
         }
+        if (!isInLockTask(activity)) return
         runCatching { activity.stopLockTask() }
     }
 

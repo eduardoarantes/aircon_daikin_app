@@ -26,6 +26,7 @@ object NetworkModule {
     private const val KEY_SIMPLE_MODE_ENABLED = "simple_mode_enabled"
     private const val KEY_SIMPLE_MODE_ZONE = "simple_mode_zone"
     private const val KEY_SIMPLE_MODE_START_TEMP = "simple_mode_start_temp"
+    private const val KEY_WALL_PANEL_ENABLED = "wall_panel_enabled"
 
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var _applicationContext: Context
@@ -102,6 +103,20 @@ object NetworkModule {
     fun setSimpleModeEnabled(enabled: Boolean) {
         sharedPreferences.edit().putBoolean(KEY_SIMPLE_MODE_ENABLED, enabled).apply()
     }
+
+    /**
+     * Master switch for the wall-panel features of simple mode: screen lock (pinning or full kiosk),
+     * home app, showing over the lock screen, keeping the screen on and silencing. On by default.
+     */
+    fun getWallPanelEnabled(): Boolean =
+        sharedPreferences.getBoolean(KEY_WALL_PANEL_ENABLED, true)
+
+    fun setWallPanelEnabled(enabled: Boolean) {
+        sharedPreferences.edit().putBoolean(KEY_WALL_PANEL_ENABLED, enabled).apply()
+    }
+
+    /** True when the app should behave as a wall panel rather than a normal app. */
+    fun isWallPanelActive(): Boolean = getSimpleModeEnabled() && getWallPanelEnabled()
 
     /** Zone is stored by name: the API identifies zones only by position and name. */
     fun getSimpleModeZone(): String? =

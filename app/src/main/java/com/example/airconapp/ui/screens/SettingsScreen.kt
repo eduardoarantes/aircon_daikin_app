@@ -45,6 +45,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
     val apiIp by viewModel.apiIp.collectAsState()
     val useMockMode by viewModel.useMockMode.collectAsState()
     val simpleModeEnabled by viewModel.simpleModeEnabled.collectAsState()
+    val wallPanelEnabled by viewModel.wallPanelEnabled.collectAsState()
     val simpleModeZone by viewModel.simpleModeZone.collectAsState()
     val availableZones by viewModel.availableZones.collectAsState()
     val zonesLoading by viewModel.zonesLoading.collectAsState()
@@ -188,6 +189,28 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
             }
 
             if (simpleModeEnabled) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Wall panel features", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Locks the phone in this app, shows it over the lock screen, keeps the screen " +
+                                "on and silences the phone. Turn off to use the app normally.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = wallPanelEnabled,
+                        onCheckedChange = { viewModel.setWallPanelEnabled(it) }
+                    )
+                }
+            }
+
+            if (simpleModeEnabled && wallPanelEnabled) {
                 // Saves first: the app is only offered as a home app once simple mode is saved
                 OutlinedButton(
                     onClick = {
@@ -212,7 +235,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
             }
 
             // Full kiosk: how to turn it on (via adb) or, once on, how to release it
-            if (simpleModeEnabled || WallPanel.isDeviceOwner(context)) {
+            if ((simpleModeEnabled && wallPanelEnabled) || WallPanel.isDeviceOwner(context)) {
                 KioskSection()
             }
 

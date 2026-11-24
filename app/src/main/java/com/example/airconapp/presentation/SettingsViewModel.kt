@@ -55,6 +55,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _simpleModeEnabled.value = enabled
     }
 
+    private val _wallPanelEnabled = MutableStateFlow(NetworkModule.getWallPanelEnabled())
+    val wallPanelEnabled: StateFlow<Boolean> = _wallPanelEnabled.asStateFlow()
+
+    fun setWallPanelEnabled(enabled: Boolean) {
+        _wallPanelEnabled.value = enabled
+    }
+
     fun setSimpleModeZone(zoneName: String) {
         _simpleModeZone.value = zoneName
     }
@@ -90,9 +97,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         NetworkModule.setBaseUrl(_apiIp.value)
         NetworkModule.setUseMockApi(_useMockMode.value)
         NetworkModule.setSimpleModeEnabled(_simpleModeEnabled.value)
+        NetworkModule.setWallPanelEnabled(_wallPanelEnabled.value)
         NetworkModule.setSimpleModeZone(_simpleModeZone.value)
         NetworkModule.setSimpleModeStartTemperature(_simpleModeStartTemperature.value)
-        WallPanel.setHomeAppEnabled(getApplication(), _simpleModeEnabled.value)
+        WallPanel.setHomeAppEnabled(getApplication(), NetworkModule.isWallPanelActive())
     }
 
     companion object {

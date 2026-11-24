@@ -39,6 +39,9 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
     private val _simpleModeEnabled = MutableStateFlow(NetworkModule.getSimpleModeEnabled())
     val simpleModeEnabled: StateFlow<Boolean> = _simpleModeEnabled
 
+    private val _wallPanelEnabled = MutableStateFlow(NetworkModule.getWallPanelEnabled())
+    val wallPanelEnabled: StateFlow<Boolean> = _wallPanelEnabled
+
     private val _simpleModeZone = MutableStateFlow(NetworkModule.getSimpleModeZone())
     val simpleModeZone: StateFlow<String?> = _simpleModeZone
 
@@ -82,6 +85,7 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
             _isLoading.value = true
             _error.value = null
             _simpleModeEnabled.value = NetworkModule.getSimpleModeEnabled()
+            _wallPanelEnabled.value = NetworkModule.getWallPanelEnabled()
             _simpleModeZone.value = NetworkModule.getSimpleModeZone()
             _simpleModeStartTemperature.value = NetworkModule.getSimpleModeStartTemperature()
             try {
