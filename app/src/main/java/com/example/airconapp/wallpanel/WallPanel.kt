@@ -3,6 +3,7 @@ package com.example.airconapp.wallpanel
 import android.app.Activity
 import android.app.ActivityManager
 import android.app.KeyguardManager
+import android.app.NotificationManager
 import android.app.admin.DevicePolicyManager
 import android.app.role.RoleManager
 import android.content.ComponentName
@@ -10,6 +11,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.os.Build
 import android.provider.Settings
 import android.view.WindowManager
@@ -145,5 +147,66 @@ object WallPanel {
         val dpm = activity.getSystemService(DevicePolicyManager::class.java)
         dpm.clearPackagePersistentPreferredActivities(adminComponent(activity), activity.packageName)
         dpm.clearDeviceOwnerApp(activity.packageName)
+    }
+
+    // --- Silence ---
+
+    private val MUTED_STREAMS = listOf(
+        AudioManager.STREAM_MUSIC, AudioManager.STREAM_NOTIFICATION, AudioManager.STREAM_SYSTEM,
+        AudioManager.STREAM_RING, AudioManager.STREAM_ALARM
+    )
+
+    /** True once the app may switch Do Not Disturb (granted in system settings or via adb). */
+    fun hasSilencePermission(context: Context): Boolean =
+        context.getSystemService(NotificationManager::class.java)?.isNotificationPolicyAccessGranted == true
+
+    /** Opens the system screen where the user grants Do Not Disturb access. */
+    fun openSilencePermissionSettings(context: Context) {
+        context.startActivity(
+            Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    }
+
+    /**
+     * Keeps the wall panel silent: Do Not Disturb set to total silence (when permitted),
+     * every sound stream muted, and no click sounds or haptics from this app's own views.
+     * Safe to call repeatedly; it only changes what isn't already silent.
+     */
+    fun enforceSilence(activity: Activity) {
+        activity.window.decorView.apply {
+            isSoundEffectsEnabled = false
+            isHapticFeedbackEnabled = false
+        }
+        val notifications = activity.getSystemService(NotificationManager::class.java)
+        if (notifications?.isNotificationPolicyAccessGranted == true &&
+            notifications.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_NONE
+        ) {
+            notifications.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_NONE)
+        }
+        val audio = activity.getSystemService(AudioManager::class.java) ?: return
+        for (stream in MUTED_STREAMS) {
+            // Muting the ring stream needs Do Not Disturb access; skip it rather than crash
+            if (!audio.isStreamMute(stream)) {
+                runCatching { audio.adjustStreamVolume(stream, AudioManager.ADJUST_MUTE, 0) }
+            }
+        }
+    }
+
+    /** Undoes [enforceSilence] when simple mode is turned off. */
+    fun releaseSilence(activity: Activity) {
+        activity.window.decorView.apply {
+            isSoundEffectsEnabled = true
+            isHapticFeedbackEnabled = true
+        }
+        val notifications = activity.getSystemService(NotificationManager::class.java)
+        if (notifications?.isNotificationPolicyAccessGranted == true &&
+            notifications.currentInterruptionFilter == NotificationManager.INTERRUPTION_FILTER_NONE
+        ) {
+            notifications.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
+        }
+        val audio = activity.getSystemService(AudioManager::class.java) ?: return
+        for (stream in MUTED_STREAMS) {
+            runCatching { audio.adjustStreamVolume(stream, AudioManager.ADJUST_UNMUTE, 0) }
+        }
     }
 }

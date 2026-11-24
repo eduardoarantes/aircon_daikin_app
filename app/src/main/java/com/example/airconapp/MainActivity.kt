@@ -45,6 +45,15 @@ class MainActivity : ComponentActivity() {
         if (intent.hasCategory(android.content.Intent.CATEGORY_HOME)) homePresses.value++
     }
 
+    /** The wall panel stays silent: the volume buttons do nothing while simple mode is on. */
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        val isVolumeKey = event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP ||
+            event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN ||
+            event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_MUTE
+        if (isVolumeKey && NetworkModule.getSimpleModeEnabled()) return true
+        return super.dispatchKeyEvent(event)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         NetworkModule.initialize(applicationContext)
@@ -88,6 +97,15 @@ class MainActivity : ComponentActivity() {
                             androidx.compose.runtime.LaunchedEffect(simpleModeEnabled) {
                                 if (simpleModeEnabled) WallPanel.startKiosk(this@MainActivity)
                                 else WallPanel.stopKiosk(this@MainActivity)
+                                if (simpleModeEnabled) {
+                                    // Re-applied regularly in case something turned sound back on
+                                    while (true) {
+                                        WallPanel.enforceSilence(this@MainActivity)
+                                        kotlinx.coroutines.delay(30_000)
+                                    }
+                                } else {
+                                    WallPanel.releaseSilence(this@MainActivity)
+                                }
                             }
 
                             if (simpleModeEnabled) {

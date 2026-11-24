@@ -196,6 +196,16 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
                 ) {
                     Text("Set as Home App (wall panel)")
                 }
+
+                // Without Do Not Disturb access the panel mutes sounds but can't block everything
+                if (!WallPanel.hasSilencePermission(context)) {
+                    OutlinedButton(
+                        onClick = { WallPanel.openSilencePermissionSettings(context) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Allow silencing the phone")
+                    }
+                }
             }
 
             // Only offered once the app was made device owner (full kiosk) via adb
