@@ -20,8 +20,10 @@ class EndTimeWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         Log.d("EndTimeWorker", "Executing end time for schedule ID $scheduleId")
 
         return try {
-            // Turn off the aircon (assuming pow = "0" means off)
-            airconApiService.setControlInfo(com.example.airconapp.data.ControlInfo(pow = "0", mode = "0", stemp = "25", f_rate = "A", f_dir = "0"))
+            // Turn the aircon off and nothing else: send the unit's current settings back with
+            // only the power changed, so mode, temperature and fan stay as they were
+            val current = airconApiService.getControlInfo()
+            airconApiService.setControlInfo(current.copy(pow = "0"))
 
             // Set schedule to inactive after end time execution
             val schedulerRepository = NetworkModule.schedulerRepository
