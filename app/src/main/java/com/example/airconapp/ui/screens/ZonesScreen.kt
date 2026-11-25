@@ -49,6 +49,7 @@ fun ZonesScreen(
     viewModel: MainViewModel,
     accent: Color,
     onOpenSchedules: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val zones by viewModel.zoneStatus.collectAsState()
@@ -85,7 +86,7 @@ fun ZonesScreen(
         }
 
         if (list == null) {
-            LoadingOrUnreachable(isConnected)
+            LoadingOrUnreachable(isConnected, onOpenSettings)
         } else {
         Column(
             modifier = Modifier

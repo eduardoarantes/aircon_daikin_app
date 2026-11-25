@@ -87,6 +87,7 @@ class MainActivity : ComponentActivity() {
                             val zoneStatus by mainViewModel.zoneStatus.collectAsState()
                             val error by mainViewModel.error.collectAsState()
                             val showConnectionErrorDialog by mainViewModel.showConnectionErrorDialog.collectAsState()
+                            val isConnected by mainViewModel.isConnected.collectAsState()
                             val sensorInfo by mainViewModel.sensorInfo.collectAsState()
                             val simpleModeEnabled by mainViewModel.simpleModeEnabled.collectAsState()
                             val wallPanelEnabled by mainViewModel.wallPanelEnabled.collectAsState()
@@ -133,7 +134,7 @@ class MainActivity : ComponentActivity() {
                                     onNavigateToSettings = {
                                         WallPanel.runAfterUnlock(this@MainActivity) { navController.navigate("settings") }
                                     },
-                                    isDisconnected = showConnectionErrorDialog
+                                    isDisconnected = isConnected != true
                                 )
                                 }
                             } else {
@@ -147,7 +148,10 @@ class MainActivity : ComponentActivity() {
                                 if (showConnectionErrorDialog) {
                                     ConnectionErrorDialog(
                                         onDismiss = { mainViewModel.hideConnectionErrorDialog() },
-                                        onSwitchToMock = { mainViewModel.switchToMockMode() }
+                                        onOpenSettings = {
+                                            mainViewModel.hideConnectionErrorDialog()
+                                            navController.navigate("settings")
+                                        }
                                     )
                                 }
                             }

@@ -111,8 +111,8 @@ fun HomeScreen(
     ) { padding ->
         val modifier = Modifier.padding(padding)
         when (tab) {
-            HomeTab.Controls -> ControlsScreen(viewModel, accent, onOpenZones = { tab = HomeTab.Zones }, modifier = modifier)
-            HomeTab.Zones -> ZonesScreen(viewModel, accent, onOpenSchedules = { tab = HomeTab.Schedules }, modifier = modifier)
+            HomeTab.Controls -> ControlsScreen(viewModel, accent, onOpenZones = { tab = HomeTab.Zones }, onOpenSettings = onOpenSettings, modifier = modifier)
+            HomeTab.Zones -> ZonesScreen(viewModel, accent, onOpenSchedules = { tab = HomeTab.Schedules }, onOpenSettings = onOpenSettings, modifier = modifier)
             HomeTab.Schedules -> SchedulesScreen(
                 schedules = schedules,
                 onAdd = onAddSchedule,

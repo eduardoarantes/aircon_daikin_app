@@ -3,7 +3,6 @@ package com.example.airconapp.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.airconapp.data.AirconApiService
-import com.example.airconapp.data.ConnectionException
 import com.example.airconapp.data.ControlInfo
 import com.example.airconapp.data.SensorInfo
 import com.example.airconapp.data.Zone
@@ -26,6 +25,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
+
+/** Failed status requests in a row before the app says it can't connect (a few seconds of searching). */
+private const val FAILED_ATTEMPTS_BEFORE_GIVING_UP = 3
 
 /** How long after the user's last change it is sent to the unit. */
 private const val SEND_DELAY_MS = 2_000L
@@ -62,8 +64,12 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
     private val _simpleModeStartTemperature = MutableStateFlow(NetworkModule.getSimpleModeStartTemperature())
     val simpleModeStartTemperature: StateFlow<Int> = _simpleModeStartTemperature
 
-    /** null while the first status request is running, then whether the last one reached the unit. */
+    /**
+     * true when the last status request reached the unit; null while searching for it (first
+     * load, or up to [FAILED_ATTEMPTS_BEFORE_GIVING_UP] failures in a row); false after that.
+     */
     private val _isConnected = MutableStateFlow<Boolean?>(null)
+    private var failedAttempts = 0
     val isConnected: StateFlow<Boolean?> = _isConnected
 
     /** One-off messages for a snackbar, e.g. a command the unit rejected. */
@@ -142,6 +148,7 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
                     _controlInfo.value = info
                     _zoneStatus.value = zones
                 }
+                failedAttempts = 0
                 _isConnected.value = true
                 // Connection is back (e.g. Wi-Fi came up after boot): drop any stale error
                 _showConnectionErrorDialog.value = false
@@ -153,11 +160,14 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
                     fetchAirconStatus()
                     return@launch
                 }
-                _isConnected.value = false
-                if (e is ConnectionException) {
-                    _showConnectionErrorDialog.value = true
+                // Keep searching (the regular poll retries) before telling the user; then say so
+                // once per outage, not on every poll
+                failedAttempts++
+                if (failedAttempts < FAILED_ATTEMPTS_BEFORE_GIVING_UP) {
+                    _isConnected.value = null
                 } else {
-                    _error.value = "Failed to fetch aircon status: ${e.message}"
+                    _isConnected.value = false
+                    if (failedAttempts == FAILED_ATTEMPTS_BEFORE_GIVING_UP) _showConnectionErrorDialog.value = true
                 }
             } finally {
                 _isLoading.value = false
@@ -298,9 +308,4 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
         _showConnectionErrorDialog.value = false
     }
 
-    fun switchToMockMode() {
-        NetworkModule.setUseMockApi(true)
-        _showConnectionErrorDialog.value = false
-        fetchAirconStatus()
-    }
 }
