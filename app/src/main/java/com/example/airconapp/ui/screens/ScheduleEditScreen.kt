@@ -73,18 +73,22 @@ private val TEMP_RANGE = 16..32
 private const val DEFAULT_TEMP = 23
 
 /**
- * New / edit schedule. [schedule] is null when creating. [deviceZones] are the unit's zones;
- * zones a saved schedule names that the unit no longer reports are kept so nothing is lost.
+ * New / edit schedule. [schedule] is null when creating; a new schedule starts from the unit's
+ * [current] settings (mode, temperature, fan, and the zones that are open now). [deviceZones]
+ * are the unit's zones; zones a saved schedule names that the unit no longer reports are kept
+ * so nothing is lost.
  */
 @Composable
 fun ScheduleEditScreen(
     schedule: SchedulerProfile?,
+    current: ControlInfo?,
     deviceZones: List<Zone>,
     onSave: (SchedulerProfile) -> Unit,
     onDelete: (SchedulerProfile) -> Unit,
     onClose: () -> Unit
 ) {
-    val info = schedule?.controlInfo
+    // Editing: the saved settings. New: what the unit is set to right now
+    val info = schedule?.controlInfo ?: current
     var startTime by remember { mutableStateOf(schedule?.startTime ?: defaultStartTime()) }
     var endTime by remember { mutableStateOf(schedule?.endTime) }
     var mode by remember { mutableStateOf(AirconMode.of(info?.mode) ?: AirconMode.COOL) }
@@ -92,7 +96,9 @@ fun ScheduleEditScreen(
         mutableStateOf(info?.stemp?.toFloatOrNull()?.toInt()?.coerceIn(TEMP_RANGE) ?: DEFAULT_TEMP)
     }
     var fan by remember { mutableStateOf(info?.let { FanSpeed.ofSchedule(it) } ?: FanSpeed.AUTO) }
-    var selected by remember { mutableStateOf(schedule?.zones.orEmpty().filter { it.isOn }.map { it.name }.toSet()) }
+    var selected by remember {
+        mutableStateOf((schedule?.zones ?: deviceZones).filter { it.isOn }.map { it.name }.toSet())
+    }
     var active by remember { mutableStateOf(schedule?.isActive ?: true) }
 
     var picking by remember { mutableStateOf<TimeField?>(null) }

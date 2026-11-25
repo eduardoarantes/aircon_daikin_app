@@ -213,7 +213,9 @@ private fun TemperatureSection(
     val mode = AirconMode.of(info.mode)
     val isFan = mode == AirconMode.FAN
     val setTemp = info.stemp.toFloatOrNull()?.roundToInt()?.coerceIn(MIN_TEMP, MAX_TEMP)
-    val canChange = enabled && isOn && !isFan && setTemp != null
+    // The temperature can be set with the unit off too (it applies when it's turned on);
+    // only Fan mode has none
+    val canChange = enabled && !isFan && setTemp != null
     val step = { delta: Int -> setTemp?.let { onSetTemperature((it + delta).coerceIn(MIN_TEMP, MAX_TEMP)) } }
 
     // While dragging, the ring follows the finger; the command goes out on release
@@ -221,8 +223,7 @@ private fun TemperatureSection(
     val shownTemp = dragTemp ?: setTemp
 
     val target = when {
-        !isOn -> 0f
-        isFan -> 1f
+        isFan -> if (isOn) 1f else 0f
         shownTemp == null -> 0f
         else -> (shownTemp - MIN_TEMP).toFloat() / (MAX_TEMP - MIN_TEMP)
     }
@@ -237,7 +238,7 @@ private fun TemperatureSection(
             accent = accent,
             fraction = fraction,
             glow = isOn,
-            showHandle = isOn && !isFan,
+            showHandle = !isFan,
             stepsEnabled = canChange,
             onDecrease = { step(-1) },
             onIncrease = { step(1) },
@@ -251,7 +252,7 @@ private fun TemperatureSection(
             onDragCancel = { dragTemp = null }
         ) {
             when {
-                !isOn -> {
+                !isOn && isFan -> {
                     Text("Off", fontFamily = SpaceGrotesk, fontWeight = FontWeight.Medium, fontSize = 56.sp * k, color = AirconColors.OffText)
                     Text("Tap power to start", fontSize = 13.sp, color = AirconColors.TextMuted)
                 }
@@ -266,7 +267,8 @@ private fun TemperatureSection(
                     )
                 }
                 else -> {
-                    CapsLabel(mode?.verb ?: "Set to", accent)
+                    // Off: the temperature it will use when turned on, in grey
+                    CapsLabel(if (isOn) mode?.verb ?: "Set to" else "Off · set to", textAccent(isOn, accent))
                     Row(verticalAlignment = Alignment.Top) {
                         Text(
                             shownTemp?.toString() ?: info.stemp,
@@ -276,7 +278,7 @@ private fun TemperatureSection(
                                 fontSize = 88.sp * k,
                                 lineHeight = 88.sp * k,
                                 letterSpacing = (-3.5).sp * k,
-                                color = AirconColors.TextPrimary
+                                color = if (isOn) AirconColors.TextPrimary else AirconColors.TextSecondary
                             )
                         )
                         Text(

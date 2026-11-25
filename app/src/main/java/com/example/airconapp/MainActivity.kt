@@ -159,6 +159,7 @@ class MainActivity : ComponentActivity() {
                         ) { entry ->
                             val id = entry.arguments?.getInt("id") ?: -1
                             val currentZones by mainViewModel.zoneStatus.collectAsState()
+                            val currentControl by mainViewModel.controlInfo.collectAsState()
                             val loaded by schedulerViewModel.profileToEdit.collectAsState()
                             androidx.compose.runtime.LaunchedEffect(id) {
                                 if (id >= 0) schedulerViewModel.loadProfile(id) else schedulerViewModel.clearProfileToEdit()
@@ -167,6 +168,7 @@ class MainActivity : ComponentActivity() {
                             if (id < 0 || loaded?.id == id) {
                                 ScheduleEditScreen(
                                     schedule = if (id < 0) null else loaded,
+                                    current = currentControl,
                                     deviceZones = currentZones.orEmpty(),
                                     onSave = { profile ->
                                         if (id < 0) schedulerViewModel.insert(profile) else schedulerViewModel.update(profile)
