@@ -76,6 +76,19 @@ class MainActivity : ComponentActivity() {
                     // One view model (and one status poll) shared by every screen
                     val mainViewModel: MainViewModel = viewModel()
                     val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.factory(application))
+                    // Poll the aircon only while the app is on screen
+                    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+                    DisposableEffect(lifecycleOwner) {
+                        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                            when (event) {
+                                androidx.lifecycle.Lifecycle.Event.ON_START -> mainViewModel.onAppVisible()
+                                androidx.lifecycle.Lifecycle.Event.ON_STOP -> mainViewModel.onAppHidden()
+                                else -> Unit
+                            }
+                        }
+                        lifecycleOwner.lifecycle.addObserver(observer)
+                        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+                    }
                     // Home button on a wall panel always returns to the control screen
                     val homePressCount by homePresses.collectAsState()
                     androidx.compose.runtime.LaunchedEffect(homePressCount) {

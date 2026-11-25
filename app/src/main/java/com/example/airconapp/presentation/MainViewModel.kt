@@ -101,25 +101,37 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
     private val airconApiService: AirconApiService
         get() = NetworkModule.airconApiService
 
-    init {
-        viewModelScope.launch {
-            // Fresh install: find the aircon on the network before the first fetch
-            NetworkModule.autoConfigureIfNeeded()
-            fetchAirconStatus()
-            startPeriodicRefresh()
+    /** Fresh install: find the aircon on the network before the first fetch. */
+    private val setup = viewModelScope.launch { NetworkModule.autoConfigureIfNeeded() }
+
+    /** True while the app is on screen; polling (and counting failures) only happens then. */
+    private var visible = false
+
+    /**
+     * The app came back on screen (launch, unlock, return from another app). Failures from
+     * before don't count: the network is often down while the phone is locked, so start the
+     * search afresh instead of greeting the user with a connection error.
+     */
+    fun onAppVisible() {
+        visible = true
+        failedAttempts = 0
+        _showConnectionErrorDialog.value = false
+        if (_isConnected.value == false) _isConnected.value = null
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
+            setup.join()
+            while (isActive) {
+                fetchAirconStatus()
+                delay(5000) // Refresh every 5 seconds
+            }
         }
     }
 
-    private fun startPeriodicRefresh() {
+    /** The app left the screen (phone locked, another app opened): stop polling. */
+    fun onAppHidden() {
+        visible = false
         refreshJob?.cancel()
-        refreshJob = viewModelScope.launch {
-            while (isActive) {
-                delay(5000) // Refresh every 5 seconds
-                if (isActive) {
-                    fetchAirconStatus()
-                }
-            }
-        }
+        _showConnectionErrorDialog.value = false
     }
 
     override fun onCleared() {
@@ -154,6 +166,8 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
                 _showConnectionErrorDialog.value = false
             } catch (e: Exception) {
                 if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                // A request that failed because the phone was locked says nothing about the aircon
+                if (!visible) return@launch
                 // The aircon may have moved to a new IP: rediscover it and retry before
                 // bothering the user
                 if (NetworkModule.healConnection()) {
@@ -223,6 +237,8 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
                     confirmed = value
                 } catch (e: Exception) {
                     if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                // A request that failed because the phone was locked says nothing about the aircon
+                if (!visible) return@launch
                     if (state.value == value) confirmed?.let { state.value = it }
                     _error.value = "$message: ${e.message}"
                     _messages.trySend(message)
