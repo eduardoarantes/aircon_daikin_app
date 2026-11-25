@@ -75,6 +75,7 @@ fun ControlsScreen(
     viewModel: MainViewModel,
     accent: Color,
     onOpenZones: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val controlInfo by viewModel.controlInfo.collectAsState()
@@ -109,7 +110,7 @@ fun ControlsScreen(
 
         val info = controlInfo
         if (info == null) {
-            LoadingOrUnreachable(isConnected)
+            LoadingOrUnreachable(isConnected, onOpenSettings)
         } else {
         val enabled = isConnected == true
         Column(modifier = Modifier.alpha(if (enabled) 1f else 0.45f)) {
@@ -142,14 +143,40 @@ fun ControlsScreen(
     }
 }
 
-/** Shown before the first status arrives: a spinner, or a note once the unit can't be reached. */
+/**
+ * Shown before the first status arrives: a spinner while searching for the aircon, then, once
+ * it couldn't be reached after a few tries, a note with a way to Settings (searching goes on).
+ */
 @Composable
-fun LoadingOrUnreachable(isConnected: Boolean?) {
-    Box(Modifier.fillMaxWidth().padding(top = 120.dp), contentAlignment = Alignment.Center) {
+fun LoadingOrUnreachable(isConnected: Boolean?, onOpenSettings: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 120.dp, start = 32.dp, end = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
         if (isConnected == false) {
-            Text("Can't reach the aircon", color = AirconColors.TextMuted, fontSize = 15.sp)
+            Text("Can't reach the aircon", color = AirconColors.TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                "Still trying. Check the Wi-Fi, or find the aircon in Settings.",
+                color = AirconColors.TextMuted,
+                fontSize = 13.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Box(
+                modifier = Modifier
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(AirconColors.Surface)
+                    .border(1.dp, AirconColors.Outline, RoundedCornerShape(22.dp))
+                    .clickable(role = Role.Button, onClick = onOpenSettings)
+                    .padding(horizontal = 20.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Open Settings", color = AirconColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            }
         } else {
             CircularProgressIndicator(color = AirconColors.TextMuted)
+            Text("Searching for the aircon…", color = AirconColors.TextMuted, fontSize = 13.sp)
         }
     }
 }

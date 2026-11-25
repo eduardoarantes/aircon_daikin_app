@@ -76,6 +76,19 @@ class MainActivity : ComponentActivity() {
                     // One view model (and one status poll) shared by every screen
                     val mainViewModel: MainViewModel = viewModel()
                     val schedulerViewModel: SchedulerViewModel = viewModel(factory = SchedulerViewModel.factory(application))
+                    // Poll the aircon only while the app is on screen
+                    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+                    DisposableEffect(lifecycleOwner) {
+                        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                            when (event) {
+                                androidx.lifecycle.Lifecycle.Event.ON_START -> mainViewModel.onAppVisible()
+                                androidx.lifecycle.Lifecycle.Event.ON_STOP -> mainViewModel.onAppHidden()
+                                else -> Unit
+                            }
+                        }
+                        lifecycleOwner.lifecycle.addObserver(observer)
+                        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+                    }
                     // Home button on a wall panel always returns to the control screen
                     val homePressCount by homePresses.collectAsState()
                     androidx.compose.runtime.LaunchedEffect(homePressCount) {
@@ -87,6 +100,7 @@ class MainActivity : ComponentActivity() {
                             val zoneStatus by mainViewModel.zoneStatus.collectAsState()
                             val error by mainViewModel.error.collectAsState()
                             val showConnectionErrorDialog by mainViewModel.showConnectionErrorDialog.collectAsState()
+                            val isConnected by mainViewModel.isConnected.collectAsState()
                             val sensorInfo by mainViewModel.sensorInfo.collectAsState()
                             val simpleModeEnabled by mainViewModel.simpleModeEnabled.collectAsState()
                             val wallPanelEnabled by mainViewModel.wallPanelEnabled.collectAsState()
@@ -133,7 +147,7 @@ class MainActivity : ComponentActivity() {
                                     onNavigateToSettings = {
                                         WallPanel.runAfterUnlock(this@MainActivity) { navController.navigate("settings") }
                                     },
-                                    isDisconnected = showConnectionErrorDialog
+                                    isDisconnected = isConnected != true
                                 )
                                 }
                             } else {
@@ -147,7 +161,10 @@ class MainActivity : ComponentActivity() {
                                 if (showConnectionErrorDialog) {
                                     ConnectionErrorDialog(
                                         onDismiss = { mainViewModel.hideConnectionErrorDialog() },
-                                        onSwitchToMock = { mainViewModel.switchToMockMode() }
+                                        onOpenSettings = {
+                                            mainViewModel.hideConnectionErrorDialog()
+                                            navController.navigate("settings")
+                                        }
                                     )
                                 }
                             }
