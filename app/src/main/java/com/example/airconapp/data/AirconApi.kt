@@ -20,13 +20,23 @@ data class ControlInfo(
     val mode: String,
     val stemp: String,
     val f_rate: String,
-    val f_dir: String
+    val f_dir: String,
+    // Daikin SkyFi "airside" fan flag ("1" = on). Not in swagger.yaml; null when unknown.
+    val f_airside: String? = null,
+    // AirBase automatic fan flag ("1" = auto, f_rate then keeps the last manual speed); null when unknown.
+    val f_auto: String? = null
 )
 
 @Serializable
 data class Zone(
     val name: String,
     val isOn: Boolean
+)
+
+// Sensor readings from /skyfi/aircon/get_sensor_info. "-" means not available.
+data class SensorInfo(
+    val indoorTemp: String?,
+    val outdoorTemp: String?
 )
 
 // ZoneStatus will now hold a list of Zone objects
@@ -40,6 +50,7 @@ interface AirconApiService {
     suspend fun setControlInfo(controlInfo: ControlInfo): String
     suspend fun getZoneSetting(): ZoneStatusResponse
     suspend fun setZoneSetting(zones: List<Zone>): String
+    suspend fun getSensorInfo(): SensorInfo
 }
 
 // API Service Implementation
@@ -59,7 +70,9 @@ class AirconApiServiceImpl(private val client: HttpClient, private val baseUrl: 
 
     override suspend fun setControlInfo(controlInfo: ControlInfo): String {
         try {
-            val queryString = "pow=${controlInfo.pow}&mode=${controlInfo.mode}&stemp=${controlInfo.stemp}&f_rate=${controlInfo.f_rate}&f_dir=${controlInfo.f_dir}"
+            val queryString = "pow=${controlInfo.pow}&mode=${controlInfo.mode}&stemp=${controlInfo.stemp}&f_rate=${controlInfo.f_rate}&f_dir=${controlInfo.f_dir}" +
+                (controlInfo.f_airside?.let { "&f_airside=$it" } ?: "") +
+                (controlInfo.f_auto?.let { "&f_auto=$it" } ?: "")
             val response = client.post {
                 url("$baseUrl/skyfi/aircon/set_control_info?$queryString")
                 contentType(ContentType.Text.Plain)
@@ -106,6 +119,27 @@ class AirconApiServiceImpl(private val client: HttpClient, private val baseUrl: 
         }
     }
 
+    override suspend fun getSensorInfo(): SensorInfo {
+        try {
+            val response = client.get {
+                url("$baseUrl/skyfi/aircon/get_sensor_info")
+            }
+            val parts = parseKeyValues(response.body())
+            return SensorInfo(
+                indoorTemp = parts["htemp"]?.takeIf { it != "-" },
+                outdoorTemp = parts["otemp"]?.takeIf { it != "-" }
+            )
+        } catch (e: java.net.ConnectException) {
+            throw ConnectionException("Could not connect to aircon")
+        }
+    }
+
+    private fun parseKeyValues(input: String): Map<String, String> =
+        input.split(",").mapNotNull { part ->
+            val kv = part.split("=", limit = 2)
+            if (kv.size == 2) kv[0] to kv[1] else null
+        }.toMap()
+
     // Helper function to parse control info string
     private fun parseControlInfoString(input: String): ControlInfo {
         val parts = input.split(",").associate { part ->
@@ -118,7 +152,9 @@ class AirconApiServiceImpl(private val client: HttpClient, private val baseUrl: 
             mode = parts["mode"] ?: "",
             stemp = parts["stemp"] ?: "",
             f_rate = parts["f_rate"] ?: "",
-            f_dir = parts["f_dir"] ?: ""
+            f_dir = parts["f_dir"] ?: "",
+            f_airside = parts["f_airside"],
+            f_auto = parts["f_auto"]
         )
     }
 

@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.App.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/white</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_background</item>
+        <!-- The app's dark background, with the icon's foreground (the system masks it to a circle) -->
+        <item name="windowSplashScreenBackground">#FF111316</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
         <item name="postSplashScreenTheme">@style/Theme.AirconApp</item>
     </style>
 </resources>

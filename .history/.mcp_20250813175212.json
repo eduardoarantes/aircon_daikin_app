@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "linear-server": {
+      "type": "sse",
+      "url": "https://mcp.linear.app/sse"
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "time-mcp": {
+      "command": "npx",
+      "args": ["-y", "time-mcp"]
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "env": {}
+    }
+  }
+}

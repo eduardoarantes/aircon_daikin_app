@@ -4,10 +4,15 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import com.example.airconapp.di.NetworkModule
+import com.example.airconapp.data.discovery.DaikinDiscovery
+import com.example.airconapp.domain.SimpleModeLogic
+import com.example.airconapp.wallpanel.WallPanel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -16,6 +21,69 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val _useMockMode = MutableStateFlow(NetworkModule.getUseMockApi())
     val useMockMode: StateFlow<Boolean> = _useMockMode.asStateFlow()
+
+    private val _simpleModeEnabled = MutableStateFlow(NetworkModule.getSimpleModeEnabled())
+    val simpleModeEnabled: StateFlow<Boolean> = _simpleModeEnabled.asStateFlow()
+
+    private val _simpleModeZone = MutableStateFlow(NetworkModule.getSimpleModeZone())
+    val simpleModeZone: StateFlow<String?> = _simpleModeZone.asStateFlow()
+
+    private val _simpleModeStartTemperature = MutableStateFlow(NetworkModule.getSimpleModeStartTemperature())
+    val simpleModeStartTemperature: StateFlow<Int> = _simpleModeStartTemperature.asStateFlow()
+
+    fun setSimpleModeStartTemperature(temperature: Int) {
+        _simpleModeStartTemperature.value = temperature.coerceIn(SimpleModeLogic.START_TEMPERATURE_RANGE)
+    }
+
+    /** Zone names from the aircon; null while loading or if the aircon could not be reached. */
+    private val _availableZones = MutableStateFlow<List<String>?>(null)
+    val availableZones: StateFlow<List<String>?> = _availableZones.asStateFlow()
+
+    private val _zonesLoading = MutableStateFlow(true)
+    val zonesLoading: StateFlow<Boolean> = _zonesLoading.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            _availableZones.value = runCatching {
+                NetworkModule.airconApiService.getZoneSetting().zones.map { it.name }
+            }.getOrNull()
+            _zonesLoading.value = false
+        }
+    }
+
+    fun setSimpleModeEnabled(enabled: Boolean) {
+        _simpleModeEnabled.value = enabled
+    }
+
+    private val _wallPanelEnabled = MutableStateFlow(NetworkModule.getWallPanelEnabled())
+    val wallPanelEnabled: StateFlow<Boolean> = _wallPanelEnabled.asStateFlow()
+
+    fun setWallPanelEnabled(enabled: Boolean) {
+        _wallPanelEnabled.value = enabled
+    }
+
+    fun setSimpleModeZone(zoneName: String) {
+        _simpleModeZone.value = zoneName
+    }
+
+    /** Null when idle; otherwise the progress/result of the last "Find" (shown under the IP field). */
+    private val _discoveryStatus = MutableStateFlow<String?>(null)
+    val discoveryStatus: StateFlow<String?> = _discoveryStatus.asStateFlow()
+
+    /** Looks for the aircon on the network and fills in its IP (saved with Save Settings). */
+    fun findAircon() {
+        viewModelScope.launch {
+            _discoveryStatus.value = "Searching…"
+            val unit = DaikinDiscovery.discover().firstOrNull()
+            if (unit == null) {
+                _discoveryStatus.value = "No aircon found on this network"
+            } else {
+                _apiIp.value = "http://${unit.ip}"
+                _useMockMode.value = false
+                _discoveryStatus.value = "Found ${unit.name ?: "aircon"} at ${unit.ip}"
+            }
+        }
+    }
 
     fun setApiIp(ip: String) {
         _apiIp.value = ip
@@ -28,6 +96,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun saveSettings() {
         NetworkModule.setBaseUrl(_apiIp.value)
         NetworkModule.setUseMockApi(_useMockMode.value)
+        NetworkModule.setSimpleModeEnabled(_simpleModeEnabled.value)
+        NetworkModule.setWallPanelEnabled(_wallPanelEnabled.value)
+        NetworkModule.setSimpleModeZone(_simpleModeZone.value)
+        NetworkModule.setSimpleModeStartTemperature(_simpleModeStartTemperature.value)
+        WallPanel.setHomeAppEnabled(getApplication(), NetworkModule.isWallPanelActive())
     }
 
     companion object {

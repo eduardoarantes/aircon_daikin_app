@@ -1,64 +1,78 @@
 package com.example.airconapp.ui.theme
 
 import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+/** Dark only for now. Material components on the older screens pick these up. */
+private val AirconColorScheme = darkColorScheme(
+    primary = AirconColors.Cool,
+    onPrimary = AirconColors.OnAccent,
+    primaryContainer = AirconColors.SurfaceAlt,
+    onPrimaryContainer = AirconColors.TextPrimary,
+    secondary = AirconColors.Cool,
+    onSecondary = AirconColors.OnAccent,
+    secondaryContainer = AirconColors.SurfaceAlt,
+    onSecondaryContainer = AirconColors.TextPrimary,
+    tertiary = AirconColors.Fan,
+    onTertiary = AirconColors.OnAccent,
+    background = AirconColors.Background,
+    onBackground = AirconColors.TextPrimary,
+    surface = AirconColors.Background,
+    onSurface = AirconColors.TextPrimary,
+    surfaceVariant = AirconColors.Surface,
+    onSurfaceVariant = AirconColors.TextMuted,
+    surfaceContainerLowest = AirconColors.Background,
+    surfaceContainerLow = AirconColors.Surface,
+    surfaceContainer = AirconColors.Surface,
+    surfaceContainerHigh = AirconColors.SurfaceAlt,
+    surfaceContainerHighest = AirconColors.SurfaceAlt,
+    surfaceBright = AirconColors.SurfaceAlt,
+    surfaceDim = AirconColors.Background,
+    outline = AirconColors.Outline,
+    outlineVariant = AirconColors.Divider,
+    error = AirconColors.PowerOff,
+    onError = AirconColors.OnAccent,
+    inverseSurface = AirconColors.TextPrimary,
+    inverseOnSurface = AirconColors.Background
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
-)
+/**
+ * Set by screens that want black system bars (the simple mode screen). The theme owns the
+ * bar colours, so it must decide here; otherwise its recompositions repaint them.
+ */
+object SystemBarsOverride {
+    var black by mutableStateOf(false)
+}
 
 @Composable
-fun AirconAppTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
-    val colorScheme = when {
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
+fun AirconAppTheme(content: @Composable () -> Unit) {
     val view = LocalView.current
+    val blackBars = SystemBarsOverride.black
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
+            val barColor = if (blackBars) Color.Black else AirconColors.Background
+            window.statusBarColor = barColor.toArgb()
+            window.navigationBarColor = barColor.toArgb()
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = false
+                isAppearanceLightNavigationBars = false
+            }
         }
     }
 
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = AirconColorScheme,
         typography = Typography,
         content = content
     )
