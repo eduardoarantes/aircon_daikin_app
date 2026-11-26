@@ -48,12 +48,22 @@ import com.example.airconapp.ui.theme.AirconColors
 import com.example.airconapp.ui.theme.Inter
 
 /** Daikin AirBase mode codes, in the order the design shows them. */
-enum class AirconMode(val code: String, val label: String, val accent: Color, val icon: ImageVector, val verb: String) {
-    AUTO("3", "Auto", AirconColors.Auto, AirconIcons.ModeAuto, "Auto · holding"),
-    COOL("2", "Cool", AirconColors.Cool, AirconIcons.ModeCool, "Cooling to"),
-    HEAT("1", "Heat", AirconColors.Heat, AirconIcons.ModeHeat, "Heating to"),
-    FAN("0", "Fan", AirconColors.Fan, AirconIcons.ModeFan, "Fan only"),
-    DRY("7", "Dry", AirconColors.Dry, AirconIcons.ModeDry, "Drying at");
+enum class AirconMode(val code: String, val label: String, val icon: ImageVector, val verb: String) {
+    AUTO("3", "Auto", AirconIcons.ModeAuto, "Auto · holding"),
+    COOL("2", "Cool", AirconIcons.ModeCool, "Cooling to"),
+    HEAT("1", "Heat", AirconIcons.ModeHeat, "Heating to"),
+    FAN("0", "Fan", AirconIcons.ModeFan, "Fan only"),
+    DRY("7", "Dry", AirconIcons.ModeDry, "Drying at");
+
+    /** Read from the current palette (not stored), so it follows the light/dark setting. */
+    val accent: Color
+        get() = when (this) {
+            AUTO -> AirconColors.Auto
+            COOL -> AirconColors.Cool
+            HEAT -> AirconColors.Heat
+            FAN -> AirconColors.Fan
+            DRY -> AirconColors.Dry
+        }
 
     companion object {
         fun of(code: String?): AirconMode? = entries.firstOrNull { it.code == code }

@@ -61,8 +61,6 @@ private const val ARC_SWEEP = 270f
 /** Size of the design's dial; every other measure scales from it. */
 private val DESIGN_SIZE = 300.dp
 
-private val SegmentFill = Color(0xFF31363E)
-private val SegmentPressed = Color(0xFF3E444D)
 
 private enum class Segment { Minus, Plus }
 
@@ -150,8 +148,8 @@ fun TemperatureRing(
                 drawArc(color, compassStart - 90f, sweep, false, topLeft, arcSize, style = Stroke(band))
             arc(AirconColors.RingTrack, ARC_START, ARC_SWEEP)
             if (fraction > 0f) arc(accent, ARC_START, ARC_SWEEP * fraction.coerceIn(0f, 1f))
-            arc(if (pressed == Segment.Plus) SegmentPressed else SegmentFill, 135f, 45f)
-            arc(if (pressed == Segment.Minus) SegmentPressed else SegmentFill, 180f, 45f)
+            arc(if (pressed == Segment.Plus) AirconColors.SegmentPressed else AirconColors.Segment, 135f, 45f)
+            arc(if (pressed == Segment.Minus) AirconColors.SegmentPressed else AirconColors.Segment, 180f, 45f)
             // Thin cuts so the bottom reads as two buttons
             for (angle in listOf(135f, 180f, 225f)) {
                 drawLine(
@@ -211,10 +209,10 @@ fun TemperatureRing(
                 val c = Offset(size.width / 2f, size.height / 2f)
                 val position = pointAt(c, 133.dp.toPx() * k, ARC_START + ARC_SWEEP * fraction.coerceIn(0f, 1f))
                 val outer = 18.dp.toPx() * k
-                drawCircle(Color.Black.copy(alpha = 0.35f), outer + 6.dp.toPx() * k, position + Offset(0f, 4.dp.toPx() * k))
+                drawCircle(AirconColors.HandleShadow, outer + 6.dp.toPx() * k, position + Offset(0f, 4.dp.toPx() * k))
                 drawCircle(AirconColors.Background.copy(alpha = 0.55f), outer + 4.dp.toPx() * k, position)
                 drawCircle(accent, outer, position)
-                drawCircle(AirconColors.TextPrimary, outer - 6.dp.toPx() * k, position)
+                drawCircle(AirconColors.HandleKnob, outer - 6.dp.toPx() * k, position)
             }
         }
     }
