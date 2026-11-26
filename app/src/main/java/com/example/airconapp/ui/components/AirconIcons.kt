@@ -53,6 +53,13 @@ object AirconIcons {
 
     val Close = icon("Close", 2f, "M6 6l12 12M18 6L6 18")
 
+    val Edit = icon("Edit", 1.8f, "M4 20h4L19 9l-4-4L4 16z", "M13.5 6.5l4 4")
+
+    val ArrowUp = icon("ArrowUp", 2f, "M12 19V5M6 11l6-6 6 6")
+
+    /** A wand: a scene sets several things at once. */
+    val Scene = icon("Scene", 1.8f, "M4 20L15 9", "M18 3v4M16 5h4M19.5 10.5v3M18 12h3M10 2.5v3M8.5 4h3")
+
     val Check = icon("Check", 2.6f, "M5 12.5l4.5 4.5L19 7.5")
 
     val NavControls = icon(

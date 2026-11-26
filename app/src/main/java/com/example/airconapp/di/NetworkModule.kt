@@ -8,6 +8,7 @@ import com.example.airconapp.data.mock.MockAirconApiService
 import com.example.airconapp.data.db.AppDatabase
 import com.example.airconapp.domain.SimpleModeLogic
 import com.example.airconapp.data.repo.SchedulerRepository
+import com.example.airconapp.data.repo.SceneRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -191,5 +192,9 @@ object NetworkModule {
 
     val schedulerRepository: SchedulerRepository by lazy {
         SchedulerRepository(database.schedulerProfileDao())
+    }
+
+    val sceneRepository: SceneRepository by lazy {
+        SceneRepository(_applicationContext)
     }
 }

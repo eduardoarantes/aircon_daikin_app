@@ -265,7 +265,7 @@ private fun defaultStartTime(): String {
 }
 
 @Composable
-private fun RoundIconButton(icon: ImageVector, description: String, tint: Color, onClick: () -> Unit) {
+internal fun RoundIconButton(icon: ImageVector, description: String, tint: Color, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(44.dp)
@@ -308,7 +308,7 @@ private fun TimeTile(label: String, time: String?, border: Color, modifier: Modi
 }
 
 @Composable
-private fun FormCard(content: @Composable ColumnScope.() -> Unit) {
+internal fun FormCard(content: @Composable ColumnScope.() -> Unit) {
     val shape = RoundedCornerShape(20.dp)
     Column(
         modifier = Modifier
@@ -322,7 +322,7 @@ private fun FormCard(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-private fun TemperatureCard(temperature: Int, accent: Color, enabled: Boolean, onChange: (Int) -> Unit) {
+internal fun TemperatureCard(temperature: Int, accent: Color, enabled: Boolean, onChange: (Int) -> Unit) {
     val shape = RoundedCornerShape(20.dp)
     Row(
         modifier = Modifier
@@ -378,7 +378,7 @@ private fun StepperButton(icon: ImageVector, description: String, enabled: Boole
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ZoneChips(names: List<String>, selected: Set<String>, accent: Color, onToggle: (String) -> Unit) {
+internal fun ZoneChips(names: List<String>, selected: Set<String>, accent: Color, onToggle: (String) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         names.forEach { name ->
             val isOn = name in selected
@@ -402,7 +402,7 @@ private fun ZoneChips(names: List<String>, selected: Set<String>, accent: Color,
 }
 
 @Composable
-private fun RowScope.PillButton(
+internal fun RowScope.PillButton(
     label: String,
     fill: Color,
     content: Color,

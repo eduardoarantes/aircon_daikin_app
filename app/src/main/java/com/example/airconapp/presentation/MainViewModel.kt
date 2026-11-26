@@ -8,6 +8,8 @@ import com.example.airconapp.data.SensorInfo
 import com.example.airconapp.data.Zone
 import com.example.airconapp.di.NetworkModule
 import com.example.airconapp.domain.FanSpeed
+import com.example.airconapp.domain.Scene
+import com.example.airconapp.data.SceneRunner
 import com.example.airconapp.domain.SimpleModeLogic
 import com.example.airconapp.domain.ZoneUsage
 import kotlinx.coroutines.CoroutineScope
@@ -222,6 +224,12 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
             }
         }
 
+        /** Drops a change that hasn't been sent yet. */
+        fun cancel() {
+            timer?.cancel()
+            timer = null
+        }
+
         /** Sends the latest state now (also used when the screen closes). */
         fun flush() {
             timer?.cancel()
@@ -316,6 +324,31 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
                 fetchAirconStatus()
             } finally {
                 commandsInFlight--
+            }
+        }
+    }
+
+    /** Runs a scene from the Scenes tab; the launcher shortcuts use [SceneRunner] directly. */
+    fun applyScene(scene: Scene) {
+        // Pending taps would be sent after the scene and undo part of it
+        controlSend.cancel()
+        zoneSend.cancel()
+        commandsInFlight++
+        commandGeneration++
+        viewModelScope.launch {
+            _error.value = null
+            try {
+                val (control, zones) = SceneRunner.apply(scene)
+                _controlInfo.value = control
+                _zoneStatus.value = zones
+                _messages.trySend("${scene.name} is on")
+            } catch (e: Exception) {
+                if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                _error.value = "Couldn't start ${scene.name}: ${e.message}"
+                _messages.trySend("Couldn't start ${scene.name}")
+            } finally {
+                commandsInFlight--
+                commandGeneration++
             }
         }
     }
