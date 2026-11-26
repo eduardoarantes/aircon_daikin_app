@@ -7,6 +7,7 @@ import com.example.airconapp.data.AirconApiServiceImpl
 import com.example.airconapp.data.mock.MockAirconApiService
 import com.example.airconapp.data.db.AppDatabase
 import com.example.airconapp.domain.SimpleModeLogic
+import com.example.airconapp.domain.ThemeMode
 import com.example.airconapp.data.repo.SchedulerRepository
 import com.example.airconapp.data.repo.SceneRepository
 import io.ktor.client.HttpClient
@@ -29,6 +30,7 @@ object NetworkModule {
     private const val KEY_SIMPLE_MODE_START_TEMP = "simple_mode_start_temp"
     private const val KEY_WALL_PANEL_ENABLED = "wall_panel_enabled"
     private const val KEY_ZONE_USAGE = "zone_usage"
+    private const val KEY_THEME_MODE = "theme_mode"
 
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var _applicationContext: Context
@@ -122,6 +124,13 @@ object NetworkModule {
 
     fun setZoneUsage(encoded: String) {
         sharedPreferences.edit().putString(KEY_ZONE_USAGE, encoded).apply()
+    }
+
+    /** Light, dark or follow the device; see [com.example.airconapp.ui.theme.ThemeSetting]. */
+    fun getThemeMode(): ThemeMode = ThemeMode.fromName(sharedPreferences.getString(KEY_THEME_MODE, null))
+
+    fun setThemeMode(mode: ThemeMode) {
+        sharedPreferences.edit().putString(KEY_THEME_MODE, mode.name).apply()
     }
 
     /** True when the app should behave as a wall panel rather than a normal app. */

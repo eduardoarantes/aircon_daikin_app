@@ -197,7 +197,7 @@ fun ConnectionStatus(isConnected: Boolean?) {
 @Composable
 private fun PowerButton(isOn: Boolean, enabled: Boolean, onClick: () -> Unit) {
     val background = if (isOn) AirconColors.Connected.copy(alpha = 0.14f) else AirconColors.Surface
-    val border = if (isOn) AirconColors.Connected.copy(alpha = 0.5f) else Color(0xFF3A2A2C)
+    val border = if (isOn) AirconColors.Connected.copy(alpha = 0.5f) else AirconColors.PowerOffBorder
     val tint = if (isOn) AirconColors.Connected else AirconColors.PowerOff
     Box(
         modifier = Modifier

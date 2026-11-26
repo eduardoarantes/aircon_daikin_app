@@ -36,6 +36,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.ui.platform.LocalContext
 import com.example.airconapp.domain.SimpleModeLogic
+import com.example.airconapp.domain.ThemeMode
+import com.example.airconapp.ui.theme.ThemeSetting
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import com.example.airconapp.presentation.SettingsViewModel
 import com.example.airconapp.wallpanel.WallPanel
 
@@ -78,21 +83,27 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            ThemeChooser()
+
+            HorizontalDivider()
+
+            // Address field full width, with Find underneath, so neither is squeezed on
+            // narrow screens or with large font settings
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = apiIp,
                     onValueChange = { viewModel.setApiIp(it) },
-                    label = { Text("Aircon API IP (e.g., http://192.168.1.6)") },
-                    modifier = Modifier.weight(1f)
+                    label = { Text("Aircon address") },
+                    placeholder = { Text("http://192.168.1.6") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedButton(onClick = { viewModel.findAircon() }) { Text("Find") }
-            }
-            discoveryStatus?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.fillMaxWidth())
+                OutlinedButton(onClick = { viewModel.findAircon() }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Find aircon on network")
+                }
+                discoveryStatus?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.fillMaxWidth())
+                }
             }
 
             Row(
@@ -254,6 +265,33 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
         }
     }
 }
+/** System / Light / Dark. Applies at once (no Save needed), so the choice can be previewed. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ThemeChooser() {
+    val context = LocalContext.current
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Theme", style = MaterialTheme.typography.titleMedium)
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            ThemeMode.entries.forEachIndexed { index, mode ->
+                SegmentedButton(
+                    selected = ThemeSetting.mode == mode,
+                    onClick = { ThemeSetting.set(context, mode) },
+                    shape = SegmentedButtonDefaults.itemShape(index, ThemeMode.entries.size),
+                    icon = {}
+                ) {
+                    Text(mode.label, maxLines = 1)
+                }
+            }
+        }
+        Text(
+            "System follows your phone's dark theme setting.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 /** adb command that makes this app the device owner, which turns on the full kiosk. */
 private const val DEVICE_OWNER_COMMAND =
     "adb shell dpm set-device-owner com.example.airconapp/.wallpanel.WallPanelAdminReceiver"
