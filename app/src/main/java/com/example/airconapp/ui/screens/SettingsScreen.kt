@@ -78,21 +78,23 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            // Address field full width, with Find underneath, so neither is squeezed on
+            // narrow screens or with large font settings
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = apiIp,
                     onValueChange = { viewModel.setApiIp(it) },
-                    label = { Text("Aircon API IP (e.g., http://192.168.1.6)") },
-                    modifier = Modifier.weight(1f)
+                    label = { Text("Aircon address") },
+                    placeholder = { Text("http://192.168.1.6") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedButton(onClick = { viewModel.findAircon() }) { Text("Find") }
-            }
-            discoveryStatus?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.fillMaxWidth())
+                OutlinedButton(onClick = { viewModel.findAircon() }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Find aircon on network")
+                }
+                discoveryStatus?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.fillMaxWidth())
+                }
             }
 
             Row(
