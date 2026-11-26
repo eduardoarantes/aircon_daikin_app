@@ -162,7 +162,7 @@ fun SceneEditScreen(
                 TemperatureCard(
                     temperature = temperature,
                     accent = accent,
-                    enabled = mode != AirconMode.FAN,
+                    enabled = mode.hasSetpoint,
                     onChange = { temperature = it.coerceIn(SceneLogic.TEMPERATURE_RANGE) }
                 )
 

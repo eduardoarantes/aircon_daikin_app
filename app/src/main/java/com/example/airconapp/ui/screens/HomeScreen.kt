@@ -55,6 +55,9 @@ enum class AirconMode(val code: String, val label: String, val icon: ImageVector
     FAN("0", "Fan", AirconIcons.ModeFan, "Fan only"),
     DRY("7", "Dry", AirconIcons.ModeDry, "Drying at");
 
+    /** Fan and Dry run without a user-set target temperature; the others take a setpoint. */
+    val hasSetpoint: Boolean get() = this != FAN && this != DRY
+
     /** Read from the current palette (not stored), so it follows the light/dark setting. */
     val accent: Color
         get() = when (this) {

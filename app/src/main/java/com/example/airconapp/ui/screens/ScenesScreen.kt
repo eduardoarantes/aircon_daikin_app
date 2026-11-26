@@ -142,7 +142,7 @@ private fun SceneCard(
                 Text(scene.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = AirconColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 val settings = listOfNotNull(
                     mode?.label,
-                    if (mode == AirconMode.FAN) null else "${scene.temperature}°C",
+                    if (mode != null && !mode.hasSetpoint) null else "${scene.temperature}°C",
                     "Fan ${scene.fan.shortLabel}"
                 ).joinToString(" · ")
                 Text(settings, fontSize = 13.sp, color = accent, fontWeight = FontWeight.SemiBold)

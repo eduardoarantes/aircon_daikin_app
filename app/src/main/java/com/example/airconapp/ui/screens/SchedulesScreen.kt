@@ -162,7 +162,7 @@ private fun ScheduleCard(
                     Text(mode?.label ?: "Mode ${info.mode}", color = modeColor, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Chip {
-                    Text(if (mode == AirconMode.FAN) "—" else "${info.stemp}°C", color = AirconColors.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text(if (mode != null && !mode.hasSetpoint) "—" else "${info.stemp}°C", color = AirconColors.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Chip {
                     Text("Fan ${FanSpeed.ofSchedule(info).shortLabel}", color = AirconColors.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)

@@ -172,7 +172,7 @@ fun ScheduleEditScreen(
                 TemperatureCard(
                     temperature = temperature,
                     accent = accent,
-                    enabled = mode != AirconMode.FAN,
+                    enabled = mode.hasSetpoint,
                     onChange = { temperature = it.coerceIn(TEMP_RANGE) }
                 )
 
@@ -335,7 +335,7 @@ internal fun TemperatureCard(temperature: Int, accent: Color, enabled: Boolean, 
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text("Temperature", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             Text(
-                if (enabled) "${TEMP_RANGE.first}–${TEMP_RANGE.last}°C" else "Not used in Fan mode",
+                if (enabled) "${TEMP_RANGE.first}–${TEMP_RANGE.last}°C" else "Not used in this mode",
                 fontSize = 12.sp,
                 color = AirconColors.TextMuted
             )
