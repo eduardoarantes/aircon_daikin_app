@@ -37,6 +37,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.TextUnit
 import com.example.airconapp.data.ControlInfo
 import com.example.airconapp.data.db.SchedulerProfile
 import com.example.airconapp.domain.Scene
@@ -64,6 +65,10 @@ fun accentFor(info: ControlInfo?): Color {
     val mode = AirconMode.of(info?.mode)
     return if (info?.pow == "1" && mode != null) mode.accent else AirconColors.Disabled
 }
+
+/** Bottom bar label size, and the smallest it may shrink to under large font settings. */
+private val NAV_LABEL_SIZE = 11.sp
+private val NAV_LABEL_MIN_SIZE = 7.sp
 
 private enum class HomeTab { Controls, Zones, Scenes, Schedules }
 
@@ -156,11 +161,15 @@ private fun BottomNav(
             .selectableGroup()
     ) {
         val item = Modifier.weight(1f)
-        NavItem("Controls", AirconIcons.NavControls, selected == HomeTab.Controls, accent, item) { onSelect(HomeTab.Controls) }
-        NavItem("Zones", AirconIcons.NavZones, selected == HomeTab.Zones, accent, item) { onSelect(HomeTab.Zones) }
-        NavItem("Scenes", AirconIcons.Scene, selected == HomeTab.Scenes, accent, item) { onSelect(HomeTab.Scenes) }
-        NavItem("Schedules", AirconIcons.Calendar, selected == HomeTab.Schedules, accent, item) { onSelect(HomeTab.Schedules) }
-        NavItem("Settings", AirconIcons.Settings, false, accent, item, onOpenSettings)
+        // One size for every label: it shrinks until the longest fits on one line (large font
+        // settings), so the labels never wrap and stay the same size as each other
+        var labelSize by remember { mutableStateOf(NAV_LABEL_SIZE) }
+        val shrink = { if (labelSize > NAV_LABEL_MIN_SIZE) labelSize = (labelSize.value * 0.92f).sp }
+        NavItem("Controls", AirconIcons.NavControls, selected == HomeTab.Controls, accent, item, labelSize, shrink) { onSelect(HomeTab.Controls) }
+        NavItem("Zones", AirconIcons.NavZones, selected == HomeTab.Zones, accent, item, labelSize, shrink) { onSelect(HomeTab.Zones) }
+        NavItem("Scenes", AirconIcons.Scene, selected == HomeTab.Scenes, accent, item, labelSize, shrink) { onSelect(HomeTab.Scenes) }
+        NavItem("Schedules", AirconIcons.Calendar, selected == HomeTab.Schedules, accent, item, labelSize, shrink) { onSelect(HomeTab.Schedules) }
+        NavItem("Settings", AirconIcons.Settings, false, accent, item, labelSize, shrink, onOpenSettings)
     }
 }
 
@@ -171,6 +180,8 @@ private fun NavItem(
     isSelected: Boolean,
     accent: Color,
     modifier: Modifier,
+    labelSize: TextUnit,
+    onLabelTooWide: () -> Unit,
     onClick: () -> Unit
 ) {
     val color = if (isSelected) accent else AirconColors.TextMuted
@@ -185,8 +196,11 @@ private fun NavItem(
         Text(
             label,
             color = color,
-            fontSize = 11.sp,
-            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+            fontSize = labelSize,
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+            maxLines = 1,
+            softWrap = false,
+            onTextLayout = { if (it.didOverflowWidth) onLabelTooWide() }
         )
     }
 }
