@@ -30,6 +30,16 @@
             android:theme="@style/Theme.AirconApp">
         </activity>
 
+        <!-- Runs a scene from a launcher shortcut (long-press the app icon); has no screen.
+             Its own empty task affinity keeps it from bringing the app to the front. -->
+        <activity
+            android:name=".shortcuts.SceneShortcutActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <!-- Lets simple mode act as the home app on a wall-mounted phone.
              Disabled by default; WallPanel.setHomeAppEnabled turns it on with simple mode. -->
         <activity-alias

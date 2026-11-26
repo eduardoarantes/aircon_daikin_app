@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher shortcut icon for a scene in cool mode: the mode's glyph on its accent colour. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:fillColor="#FF5CC8FF"
+        android:pathData="M2 24a22 22 0 1 0 44 0a22 22 0 1 0 -44 0z" />
+    <group
+        android:translateX="12"
+        android:translateY="12">
+        <path
+            android:pathData="M12 2.5v19"
+            android:strokeColor="#FF0E1013"
+            android:strokeWidth="1.8"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M3.8 7.25l16.4 9.5"
+            android:strokeColor="#FF0E1013"
+            android:strokeWidth="1.8"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M20.2 7.25l-16.4 9.5"
+            android:strokeColor="#FF0E1013"
+            android:strokeWidth="1.8"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M9.3 4.3L12 7l2.7-2.7"
+            android:strokeColor="#FF0E1013"
+            android:strokeWidth="1.8"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M9.3 19.7L12 17l2.7 2.7"
+            android:strokeColor="#FF0E1013"
+            android:strokeWidth="1.8"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
+</vector>

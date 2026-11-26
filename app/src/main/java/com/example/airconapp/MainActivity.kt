@@ -24,6 +24,7 @@ import com.example.airconapp.ui.components.ConnectionErrorDialog
 import com.example.airconapp.ui.components.SimpleModeScreenContent
 import com.example.airconapp.ui.screens.HomeScreen
 import com.example.airconapp.ui.screens.ScheduleEditScreen
+import com.example.airconapp.ui.screens.SceneEditScreen
 import com.example.airconapp.ui.screens.SettingsScreen
 import com.example.airconapp.ui.theme.AirconAppTheme
 import com.example.airconapp.wallpanel.WallPanel
@@ -56,6 +57,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         NetworkModule.initialize(applicationContext)
         WallPanel.setHomeAppEnabled(this, NetworkModule.isWallPanelActive())
+        // Keep the app icon's long-press menu in step with the saved scenes
+        NetworkModule.sceneRepository.refreshShortcuts()
 
         // Schedule existing profiles
         lifecycleScope.launch {
@@ -107,6 +110,7 @@ class MainActivity : ComponentActivity() {
                             val wallPanelActive = simpleModeEnabled && wallPanelEnabled
                             val simpleModeZone by mainViewModel.simpleModeZone.collectAsState()
                             val simpleModeStartTemperature by mainViewModel.simpleModeStartTemperature.collectAsState()
+                            val scenes by NetworkModule.sceneRepository.scenes.collectAsState()
 
                             // As a wall panel the app keeps the user inside it; otherwise it runs as a normal app
                             androidx.compose.runtime.LaunchedEffect(wallPanelActive) {
@@ -156,6 +160,10 @@ class MainActivity : ComponentActivity() {
                                     schedulerViewModel = schedulerViewModel,
                                     onAddSchedule = { navController.navigate("schedule_edit/-1") },
                                     onEditSchedule = { navController.navigate("schedule_edit/${it.id}") },
+                                    scenes = scenes,
+                                    onAddScene = { navController.navigate("scene_edit/new") },
+                                    onEditScene = { navController.navigate("scene_edit/${it.id}") },
+                                    onMoveSceneUp = { NetworkModule.sceneRepository.moveUp(it) },
                                     onOpenSettings = { navController.navigate("settings") }
                                 )
                                 if (showConnectionErrorDialog) {
@@ -198,6 +206,27 @@ class MainActivity : ComponentActivity() {
                                     onClose = { navController.popBackStack() }
                                 )
                             }
+                        }
+                        // New scene ("new") or edit an existing one
+                        composable("scene_edit/{id}") { entry ->
+                            val id = entry.arguments?.getString("id")
+                            val scene = id?.let { NetworkModule.sceneRepository.get(it) }
+                            val currentZones by mainViewModel.zoneStatus.collectAsState()
+                            val currentControl by mainViewModel.controlInfo.collectAsState()
+                            SceneEditScreen(
+                                scene = scene,
+                                current = currentControl,
+                                deviceZones = currentZones.orEmpty(),
+                                onSave = {
+                                    NetworkModule.sceneRepository.save(it)
+                                    navController.popBackStack()
+                                },
+                                onDelete = {
+                                    NetworkModule.sceneRepository.delete(it)
+                                    navController.popBackStack()
+                                },
+                                onClose = { navController.popBackStack() }
+                            )
                         }
                         composable("settings") {
                             val settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.factory(application))
