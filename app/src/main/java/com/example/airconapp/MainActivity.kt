@@ -27,6 +27,7 @@ import com.example.airconapp.ui.screens.ScheduleEditScreen
 import com.example.airconapp.ui.screens.SceneEditScreen
 import com.example.airconapp.ui.screens.SettingsScreen
 import com.example.airconapp.ui.theme.AirconAppTheme
+import com.example.airconapp.ui.theme.ThemeSetting
 import com.example.airconapp.wallpanel.WallPanel
 import android.view.WindowManager
 import com.example.airconapp.scheduler.ScheduleManager
@@ -56,6 +57,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         NetworkModule.initialize(applicationContext)
+        ThemeSetting.load(applicationContext)
         WallPanel.setHomeAppEnabled(this, NetworkModule.isWallPanelActive())
         // Keep the app icon's long-press menu in step with the saved scenes
         NetworkModule.sceneRepository.refreshShortcuts()
