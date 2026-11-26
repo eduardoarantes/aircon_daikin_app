@@ -12,15 +12,21 @@ import com.example.airconapp.domain.Scene
 object SceneShortcuts {
 
     const val ACTION_APPLY_SCENE = "com.example.airconapp.action.APPLY_SCENE"
+    const val ACTION_TURN_OFF = "com.example.airconapp.action.TURN_OFF"
     const val EXTRA_SCENE_ID = "scene_id"
 
+    /** Id of the fixed "Turn off" shortcut; scene ids are UUIDs so they never clash. */
+    private const val TURN_OFF_ID = "turn_off"
+
     /**
-     * Launchers show only the first few (usually four); the order matches the Scenes tab.
-     * Pinned shortcuts (dragged onto the home screen) are updated too.
+     * "Turn off" always comes first, then the scenes in the Scenes tab's order. Launchers show
+     * only the first few (usually four). Pinned shortcuts (dragged onto the home screen) are
+     * updated too.
      */
     fun publish(context: Context, scenes: List<Scene>) {
-        val max = ShortcutManagerCompat.getMaxShortcutCountPerActivity(context).coerceAtLeast(1)
-        val shortcuts = scenes.take(max).mapIndexed { rank, scene -> shortcut(context, scene, rank) }
+        val max = (ShortcutManagerCompat.getMaxShortcutCountPerActivity(context) - 1).coerceAtLeast(0)
+        val shortcuts = listOf(turnOffShortcut(context)) +
+            scenes.take(max).mapIndexed { index, scene -> shortcut(context, scene, index + 1) }
         runCatching {
             ShortcutManagerCompat.setDynamicShortcuts(context, shortcuts)
             // A pinned shortcut whose scene dropped out of the top list still gets its new name
@@ -45,6 +51,15 @@ object SceneShortcuts {
             .setRank(rank)
             .build()
     }
+
+    private fun turnOffShortcut(context: Context): ShortcutInfoCompat =
+        ShortcutInfoCompat.Builder(context, TURN_OFF_ID)
+            .setShortLabel("Turn off")
+            .setLongLabel("Turn the aircon off")
+            .setIcon(IconCompat.createWithResource(context, R.drawable.ic_shortcut_off))
+            .setIntent(Intent(context, SceneShortcutActivity::class.java).setAction(ACTION_TURN_OFF))
+            .setRank(0)
+            .build()
 
     private fun iconFor(mode: String): Int = when (mode) {
         "1" -> R.drawable.ic_shortcut_heat

@@ -10,11 +10,22 @@ import androidx.work.WorkerParameters
 import com.example.airconapp.data.SceneRunner
 import com.example.airconapp.di.NetworkModule
 
-/** Applies a scene picked from a launcher shortcut, then says whether it worked. */
+/** Applies a scene (or turns the aircon off) from a launcher shortcut, then says whether it worked. */
 class SceneWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
         NetworkModule.initialize(applicationContext)
+        if (inputData.getBoolean(KEY_TURN_OFF, false)) {
+            return try {
+                SceneRunner.turnOff()
+                toast("Aircon is off")
+                Result.success()
+            } catch (e: Exception) {
+                Log.e("SceneWorker", "Failed to turn the aircon off: ${e.message}")
+                toast("Couldn't reach the aircon to turn it off")
+                Result.failure()
+            }
+        }
         val sceneId = inputData.getString(KEY_SCENE_ID) ?: return Result.failure()
         val scene = NetworkModule.sceneRepository.get(sceneId) ?: return Result.failure()
         return try {
@@ -37,5 +48,6 @@ class SceneWorker(context: Context, params: WorkerParameters) : CoroutineWorker(
 
     companion object {
         const val KEY_SCENE_ID = "SCENE_ID"
+        const val KEY_TURN_OFF = "TURN_OFF"
     }
 }

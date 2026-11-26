@@ -40,8 +40,8 @@ import com.example.airconapp.domain.Scene
 import com.example.airconapp.ui.components.AirconIcons
 import com.example.airconapp.ui.theme.AirconColors
 
-/** How many scenes launchers typically show when the app icon is long-pressed. */
-private const val SHORTCUTS_SHOWN = 4
+/** How many scenes launchers typically show when the app icon is long-pressed, after "Turn off". */
+private const val SHORTCUTS_SHOWN = 3
 
 /** The scenes tab: tap a scene to run it; the first few also appear on the app icon's long-press menu. */
 @Composable
@@ -66,7 +66,7 @@ fun ScenesScreen(
                 ) {
                     Text("Scenes", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = AirconColors.TextPrimary)
                     Text(
-                        "Tap to run. Long-press the app icon for the first $SHORTCUTS_SHOWN.",
+                        "Tap to run. Long-press the app icon for Turn off and the first $SHORTCUTS_SHOWN.",
                         fontSize = 13.sp,
                         color = AirconColors.TextMuted
                     )
