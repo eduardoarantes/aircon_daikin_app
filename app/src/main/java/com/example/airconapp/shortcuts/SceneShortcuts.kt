@@ -13,6 +13,7 @@ object SceneShortcuts {
 
     const val ACTION_APPLY_SCENE = "com.example.airconapp.action.APPLY_SCENE"
     const val ACTION_TURN_OFF = "com.example.airconapp.action.TURN_OFF"
+    const val WORK_TAG = "scene_shortcut"
     const val EXTRA_SCENE_ID = "scene_id"
 
     /** Id of the fixed "Turn off" shortcut; scene ids are UUIDs so they never clash. */
@@ -39,9 +40,15 @@ object SceneShortcuts {
         runCatching { ShortcutManagerCompat.disableShortcuts(context, listOf(sceneId), "This scene was deleted") }
     }
 
+    private fun authorizedIntent(context: Context, action: String): Intent =
+        Intent(context, SceneShortcutActivity::class.java)
+            .setAction(action)
+            .putExtra(ShortcutAuthorization.EXTRA_TOKEN, ShortcutAuthorization(
+                context.getSharedPreferences(ShortcutAuthorization.PREFS_NAME, Context.MODE_PRIVATE)
+            ).token())
+
     private fun shortcut(context: Context, scene: Scene, rank: Int): ShortcutInfoCompat {
-        val intent = Intent(context, SceneShortcutActivity::class.java)
-            .setAction(ACTION_APPLY_SCENE)
+        val intent = authorizedIntent(context, ACTION_APPLY_SCENE)
             .putExtra(EXTRA_SCENE_ID, scene.id)
         return ShortcutInfoCompat.Builder(context, scene.id)
             .setShortLabel(scene.name.take(25))
@@ -57,7 +64,7 @@ object SceneShortcuts {
             .setShortLabel("Turn off")
             .setLongLabel("Turn the aircon off")
             .setIcon(IconCompat.createWithResource(context, R.drawable.ic_shortcut_off))
-            .setIntent(Intent(context, SceneShortcutActivity::class.java).setAction(ACTION_TURN_OFF))
+            .setIntent(authorizedIntent(context, ACTION_TURN_OFF))
             .setRank(0)
             .build()
 

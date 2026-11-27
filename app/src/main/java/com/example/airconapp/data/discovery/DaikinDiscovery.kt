@@ -1,5 +1,8 @@
 package com.example.airconapp.data.discovery
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.DatagramPacket
@@ -23,7 +26,7 @@ object DaikinDiscovery {
 
     suspend fun discover(timeoutMs: Int = 3000): List<DiscoveredUnit> = withContext(Dispatchers.IO) {
         val found = linkedMapOf<String, DiscoveredUnit>()
-        runCatching {
+        try {
             DatagramSocket().use { socket ->
                 socket.broadcast = true
                 socket.soTimeout = 300
@@ -32,6 +35,7 @@ object DaikinDiscovery {
                 val buffer = ByteArray(2048)
                 val deadline = System.currentTimeMillis() + timeoutMs
                 while (System.currentTimeMillis() < deadline) {
+                    currentCoroutineContext().ensureActive()
                     val packet = DatagramPacket(buffer, buffer.size)
                     try {
                         socket.receive(packet)
@@ -43,6 +47,10 @@ object DaikinDiscovery {
                     parseReply(ip, reply)?.let { found[ip] = it }
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // Discovery is best-effort; callers can still use their configured transport.
         }
         found.values.toList()
     }

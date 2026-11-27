@@ -39,7 +39,10 @@ class RemoteFallbackApiServiceTest {
         cloud: () -> AirconApiService?,
         heal: suspend () -> Boolean = { false },
         reEnrol: suspend () -> Boolean = { false },
-    ) = RemoteFallbackApiService(local, cloud, heal, reEnrol, reportMode = { modes.add(it) })
+        preferCloud: () -> Boolean = { false },
+        networkKey: () -> Any? = { Unit },
+        monotonicMillis: () -> Long = { System.nanoTime() / 1_000_000 },
+    ) = RemoteFallbackApiService(local, cloud, heal, reEnrol, reportMode = { modes.add(it) }, preferCloud = preferCloud, networkKey = networkKey, monotonicMillis = monotonicMillis)
 
     // --- 3.1 three branches ---
 
@@ -202,17 +205,146 @@ class RemoteFallbackApiServiceTest {
     @Test
     fun `transport mode flips to remote on fallback and back to local when local recovers`() = runBlocking {
         var localUp = false
+        var now = 0L
         val cloudApi = FakeApi(control = sample)
         val svc = service(
             local = { if (localUp) FakeApi(control = sample) else FakeApi(onCall = { throw ConnectionException("down") }) },
             cloud = { cloudApi },
+            monotonicMillis = { now },
         )
 
         svc.getControlInfo()
         assertEquals(TransportMode.REMOTE, modes.last())
 
         localUp = true
+        now = 30_000
         svc.getControlInfo()
         assertEquals(TransportMode.LOCAL, modes.last())
+    }
+
+    @Test
+    fun `cellular startup reads and writes skip local and discovery entirely`() = runBlocking {
+        val cloudApi = FakeApi(control = sample)
+        val svc = service(
+            local = { error("LAN must not be attempted on cellular") },
+            cloud = { cloudApi },
+            heal = { error("LAN discovery must not run on cellular") },
+            preferCloud = { true },
+        )
+        assertEquals(sample, svc.getControlInfo())
+        svc.getZoneSetting()
+        svc.getSensorInfo()
+        svc.setControlInfo(sample)
+        svc.setZoneSetting(emptyList())
+        assertEquals(5, cloudApi.calls)
+        assertTrue(modes.all { it == TransportMode.REMOTE })
+    }
+
+    @Test
+    fun `returning from cellular to Wi-Fi uses local on the next call`() = runBlocking {
+        var cellular = true
+        val localApi = FakeApi(control = sample)
+        val cloudApi = FakeApi(control = sample)
+        val svc = service(local = { localApi }, cloud = { cloudApi }, preferCloud = { cellular })
+        svc.getControlInfo()
+        cellular = false
+        svc.getControlInfo()
+        assertEquals(1, cloudApi.calls)
+        assertEquals(1, localApi.calls)
+        assertEquals(listOf(TransportMode.REMOTE, TransportMode.LOCAL), modes)
+    }
+
+    @Test
+    fun `stale cellular credential does not attempt LAN re-enrolment`() = runBlocking {
+        val cloudApi = FakeApi(onCall = { throw RemoteCredentialException("stale") })
+        val svc = service(
+            local = { error("LAN must not be attempted") },
+            cloud = { cloudApi },
+            reEnrol = { error("Re-enrolment requires LAN access") },
+            preferCloud = { true },
+        )
+        try {
+            svc.getControlInfo()
+            fail("expected RemoteCredentialException")
+        } catch (e: RemoteCredentialException) {
+            assertEquals(1, cloudApi.calls)
+        }
+    }
+
+    @Test
+    fun `cellular cloud failure clears remote indicator without probing LAN`() = runBlocking {
+        var reachable = true
+        val cloudApi = FakeApi(onCall = { if (!reachable) throw ConnectionException("cloud down") })
+        val svc = service(local = { error("LAN must not be attempted") }, cloud = { cloudApi }, preferCloud = { true })
+        svc.getControlInfo()
+        reachable = false
+        try {
+            svc.getControlInfo()
+            fail("expected ConnectionException")
+        } catch (e: ConnectionException) {
+            assertEquals(TransportMode.LOCAL, modes.last())
+        }
+    }
+
+    @Test
+    fun `cellular without a credential fails without waiting on LAN`() = runBlocking {
+        val svc = service(local = { error("LAN must not be attempted") }, cloud = { null }, preferCloud = { true })
+        try {
+            svc.getControlInfo()
+            fail("expected ConnectionException")
+        } catch (e: ConnectionException) {
+            assertEquals(TransportMode.LOCAL, modes.last())
+        }
+    }
+
+    @Test fun `recent LAN failure is reused for zones sensors and subsequent polls`() = runBlocking {
+        val localApi = FakeApi(onCall = { throw ConnectionException("away Wi-Fi") })
+        val cloudApi = FakeApi()
+        var heals = 0
+        val svc = service(local = { localApi }, cloud = { cloudApi }, heal = { heals++; false })
+        svc.getControlInfo()
+        svc.getZoneSetting()
+        svc.getSensorInfo()
+        svc.getControlInfo()
+        assertEquals(1, localApi.calls)
+        assertEquals(1, heals)
+        assertEquals(4, cloudApi.calls)
+    }
+
+    @Test fun `network change restores local priority before retry deadline`() = runBlocking {
+        var network = "office"
+        val localApi = FakeApi(onCall = { if (network == "office") throw ConnectionException("away") })
+        val cloudApi = FakeApi()
+        val svc = service(local = { localApi }, cloud = { cloudApi }, networkKey = { network })
+        svc.getControlInfo()
+        network = "home"
+        svc.getControlInfo()
+        assertEquals(2, localApi.calls)
+        assertEquals(1, cloudApi.calls)
+        assertEquals(TransportMode.LOCAL, modes.last())
+    }
+
+    @Test fun `no remote credential never suppresses a local recovery`() = runBlocking {
+        var localUp = false
+        val svc = service(
+            local = { FakeApi(onCall = { if (!localUp) throw ConnectionException("down") }) },
+            cloud = { null },
+        )
+        try { svc.getControlInfo(); fail("expected ConnectionException") } catch (_: ConnectionException) {}
+        localUp = true
+        svc.getControlInfo()
+        assertEquals(TransportMode.LOCAL, modes.last())
+    }
+
+    @Test fun `local cancellation is not cached as a reachability failure`() = runBlocking {
+        var cancelled = true
+        var cloudBuilt = 0
+        val localApi = FakeApi(onCall = { if (cancelled) throw kotlinx.coroutines.CancellationException("hidden") })
+        val svc = service(local = { localApi }, cloud = { cloudBuilt++; FakeApi() })
+        try { svc.getControlInfo(); fail("expected cancellation") } catch (_: kotlinx.coroutines.CancellationException) {}
+        cancelled = false
+        svc.getControlInfo()
+        assertEquals(2, localApi.calls)
+        assertEquals(0, cloudBuilt)
     }
 }

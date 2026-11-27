@@ -1,5 +1,10 @@
 package com.example.airconapp.ui.screens
 
+import com.example.airconapp.data.remote.TransportMode
+
+import com.example.airconapp.domain.TemperatureUnit
+import com.example.airconapp.domain.displayTemp
+import com.example.airconapp.domain.label
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -78,10 +83,12 @@ fun ControlsScreen(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val temperatureUnit by viewModel.temperatureUnit.collectAsState()
     val controlInfo by viewModel.controlInfo.collectAsState()
     val zones by viewModel.zoneStatus.collectAsState()
     val sensorInfo by viewModel.sensorInfo.collectAsState()
     val isConnected by viewModel.isConnected.collectAsState()
+    val transportMode by viewModel.transportMode.collectAsState()
     val mostUsed by viewModel.mostUsedZones.collectAsState()
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
@@ -100,7 +107,7 @@ fun ControlsScreen(
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Aircon", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = AirconColors.TextPrimary)
-                ConnectionStatus(isConnected)
+                ConnectionStatus(isConnected, transportMode)
             }
             val info = controlInfo
             if (info != null) {
@@ -119,6 +126,7 @@ fun ControlsScreen(
                 info = info,
                 accent = accent,
                 indoorTemp = sensorInfo?.indoorTemp,
+                temperatureUnit = temperatureUnit,
                 enabled = enabled,
                 ringSize = ringSize,
                 onSetTemperature = viewModel::setTemperature
@@ -182,7 +190,7 @@ fun LoadingOrUnreachable(isConnected: Boolean?, onOpenSettings: () -> Unit) {
 }
 
 @Composable
-fun ConnectionStatus(isConnected: Boolean?) {
+fun ConnectionStatus(isConnected: Boolean?, transportMode: TransportMode) {
     val (dot, label) = when (isConnected) {
         true -> AirconColors.Connected to "Connected"
         false -> AirconColors.PowerOff to "Disconnected"
@@ -190,7 +198,8 @@ fun ConnectionStatus(isConnected: Boolean?) {
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.size(8.dp).background(dot, CircleShape))
-        Text("Daikin · $label", fontSize = 13.sp, color = AirconColors.TextMuted)
+        val remote = if (isConnected == true && transportMode == TransportMode.REMOTE) " · Remote" else ""
+        Text("Daikin · $label$remote", fontSize = 13.sp, color = AirconColors.TextMuted)
     }
 }
 
@@ -231,6 +240,7 @@ private fun TemperatureSection(
     info: ControlInfo,
     accent: Color,
     indoorTemp: String?,
+    temperatureUnit: TemperatureUnit,
     enabled: Boolean,
     ringSize: Dp,
     onSetTemperature: (Int) -> Unit
@@ -272,6 +282,7 @@ private fun TemperatureSection(
             onDecrease = { step(-1) },
             onIncrease = { step(1) },
             ringSize = ringSize,
+            temperatureUnit = temperatureUnit,
             slider = if (canChange) DialSlider(shownTemp!!, MIN_TEMP..MAX_TEMP) { onSetTemperature(it) } else null,
             onDrag = if (canChange) { f -> dragTemp = (MIN_TEMP + f * (MAX_TEMP - MIN_TEMP)).roundToInt() } else null,
             onDragEnd = {
@@ -300,7 +311,7 @@ private fun TemperatureSection(
                     CapsLabel(if (isOn) mode?.verb ?: "Set to" else "Off · set to", textAccent(isOn, accent))
                     Row(verticalAlignment = Alignment.Top) {
                         Text(
-                            shownTemp?.toString() ?: info.stemp,
+                            shownTemp?.let { displayTemp(it, temperatureUnit).toString() } ?: displayTemp(info.stemp, temperatureUnit) ?: "--",
                             style = TextStyle(
                                 fontFamily = SpaceGrotesk,
                                 fontWeight = FontWeight.Medium,
@@ -311,7 +322,7 @@ private fun TemperatureSection(
                             )
                         )
                         Text(
-                            "°C",
+                            label(temperatureUnit),
                             fontFamily = SpaceGrotesk,
                             fontWeight = FontWeight.Medium,
                             fontSize = 26.sp * k,
@@ -322,14 +333,15 @@ private fun TemperatureSection(
                 }
             }
             // Only the unit's real reading; nothing when the sensor reports none
-            if (indoorTemp != null) {
+            val displayedIndoorTemp = displayTemp(indoorTemp, temperatureUnit)
+            if (displayedIndoorTemp != null) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.padding(top = 8.dp)
                 ) {
                     Icon(AirconIcons.House, contentDescription = null, tint = AirconColors.TextMuted, modifier = Modifier.size(14.dp))
-                    Text("Indoor $indoorTemp°C", fontSize = 13.sp, color = AirconColors.TextMuted)
+                    Text("Indoor $displayedIndoorTemp${label(temperatureUnit)}", fontSize = 13.sp, color = AirconColors.TextMuted)
                 }
             }
         }

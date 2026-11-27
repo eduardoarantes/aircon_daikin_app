@@ -5,7 +5,6 @@ import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.airconapp.di.NetworkModule
-import com.example.airconapp.scheduler.ScheduleManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -14,11 +13,11 @@ class ScheduleWorker(
     params: WorkerParameters
 ) : CoroutineWorker(context, params) {
 
-    private val schedulerRepository = NetworkModule.schedulerRepository
-    private val airconApiService = NetworkModule.airconApiService
-    private val scheduleManager = ScheduleManager.getInstance(context)
+    private val schedulerRepository get() = NetworkModule.schedulerRepository
+    private val airconApiService get() = NetworkModule.airconApiService
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        NetworkModule.initialize(applicationContext)
         val scheduleId = inputData.getInt("SCHEDULE_ID", -1)
         if (scheduleId == -1) {
             return@withContext Result.failure()
@@ -53,6 +52,7 @@ class ScheduleWorker(
 
             Result.success()
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             Log.e("ScheduleWorker", "Failed to execute schedule ID $scheduleId: ${e.message}")
             Result.retry()
         }

@@ -27,6 +27,7 @@ enum class TransportMode { LOCAL, REMOTE }
  * - [reEnrol] re-derives `spw` from the home network; returns true only when it succeeded (which
  *   implies local reachability), so a stale credential while away does not loop.
  * - [reportMode] publishes the transport that served the call for the UI.
+ * - [preferCloud] skips LAN attempts on cellular-only connections; checked for every call.
  */
 class RemoteFallbackApiService(
     private val local: () -> AirconApiService,
@@ -34,7 +35,17 @@ class RemoteFallbackApiService(
     private val heal: suspend () -> Boolean,
     private val reEnrol: suspend () -> Boolean,
     private val reportMode: (TransportMode) -> Unit,
+    private val preferCloud: () -> Boolean = { false },
+    private val networkKey: () -> Any? = { Unit },
+    private val monotonicMillis: () -> Long = { System.nanoTime() / 1_000_000 },
 ) : AirconApiService {
+
+    private data class LocalFailure(val network: Any?, val at: Long)
+    @Volatile private var lastLocalFailure: LocalFailure? = null
+
+    companion object {
+        private const val LOCAL_RETRY_INTERVAL_MS = 30_000L
+    }
 
     override suspend fun getControlInfo(): ControlInfo = withFallback(isWrite = false) { it.getControlInfo() }
     override suspend fun setControlInfo(controlInfo: ControlInfo): String = withFallback(isWrite = true) { it.setControlInfo(controlInfo) }
@@ -43,24 +54,54 @@ class RemoteFallbackApiService(
     override suspend fun getSensorInfo(): SensorInfo = withFallback(isWrite = false) { it.getSensorInfo() }
 
     private suspend fun <T> withFallback(isWrite: Boolean, op: suspend (AirconApiService) -> T): T {
+        // Cellular-only networks cannot reach the home LAN. Do not wait for local TCP
+        // timeouts or UDP discovery before every cloud read/write. Evaluate on each call
+        // so returning to Wi-Fi immediately restores local-first routing.
+        if (preferCloud()) {
+            return tryCloud(cloud(), allowReEnrol = false, op = op)
+        }
+
+        val network = networkKey()
+        val failure = lastLocalFailure
+        if (failure != null && failure.network == network &&
+            monotonicMillis() - failure.at < LOCAL_RETRY_INTERVAL_MS
+        ) {
+            // Only skip the recently failed LAN when a remote credential is available.
+            // A changed network/address, or the retry deadline, restores local priority.
+            cloud()?.let { return tryCloud(it, allowReEnrol = false, op = op) }
+        }
+
         // 1. Prefer the local adapter.
-        tryLocal(isWrite, op)?.let { return it.value }
+        tryLocal(isWrite, op)?.let {
+            lastLocalFailure = null
+            return it.value
+        }
 
         // 2. Local unreachable: the adapter may have moved. Rediscover and retry local once.
         if (heal()) {
-            tryLocal(isWrite, op)?.let { return it.value }
+            tryLocal(isWrite, op)?.let {
+                lastLocalFailure = null
+                return it.value
+            }
         }
+        lastLocalFailure = LocalFailure(network, monotonicMillis())
 
         // 3. Fall back to the cloud relay if remote access is enrolled.
-        try {
-            val cloudApi = cloud()
-                ?: throw ConnectionException("Could not connect to aircon") // no credential: surface local error unchanged
+        return tryCloud(cloud(), allowReEnrol = true, op = op)
+    }
 
+    private suspend fun <T> tryCloud(
+        cloudApi: AirconApiService?,
+        allowReEnrol: Boolean,
+        op: suspend (AirconApiService) -> T,
+    ): T {
+        try {
+            val api = cloudApi ?: throw ConnectionException("Could not connect to aircon")
             return try {
-                op(cloudApi).also { reportMode(TransportMode.REMOTE) }
+                op(api).also { reportMode(TransportMode.REMOTE) }
             } catch (e: RemoteCredentialException) {
-                // Stale `spw`. If we can reach home, refresh it and retry once; otherwise do not loop.
-                if (reEnrol()) {
+                // Re-enrolment itself needs the LAN; never try it on cellular-only networks.
+                if (allowReEnrol && reEnrol()) {
                     val refreshed = cloud() ?: throw e
                     op(refreshed).also { reportMode(TransportMode.REMOTE) }
                 } else {

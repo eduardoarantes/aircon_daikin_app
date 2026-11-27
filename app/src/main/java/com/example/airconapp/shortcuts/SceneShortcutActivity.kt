@@ -16,10 +16,18 @@ import com.example.airconapp.worker.SceneWorker
 class SceneShortcutActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val authorized = ShortcutAuthorization(
+            getSharedPreferences(ShortcutAuthorization.PREFS_NAME, MODE_PRIVATE)
+        ).accepts(intent?.getStringExtra(ShortcutAuthorization.EXTRA_TOKEN))
+        if (!authorized || intent?.action !in setOf(SceneShortcuts.ACTION_TURN_OFF, SceneShortcuts.ACTION_APPLY_SCENE)) {
+            finish()
+            return
+        }
         NetworkModule.initialize(applicationContext)
         if (intent?.action == SceneShortcuts.ACTION_TURN_OFF) {
             WorkManager.getInstance(applicationContext).enqueue(
                 OneTimeWorkRequestBuilder<SceneWorker>()
+                    .addTag(SceneShortcuts.WORK_TAG)
                     .setInputData(workDataOf(SceneWorker.KEY_TURN_OFF to true))
                     .build()
             )
@@ -34,6 +42,7 @@ class SceneShortcutActivity : Activity() {
         } else {
             WorkManager.getInstance(applicationContext).enqueue(
                 OneTimeWorkRequestBuilder<SceneWorker>()
+                    .addTag(SceneShortcuts.WORK_TAG)
                     .setInputData(workDataOf(SceneWorker.KEY_SCENE_ID to scene.id))
                     .build()
             )

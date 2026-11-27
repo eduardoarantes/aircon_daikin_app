@@ -8,9 +8,10 @@ import com.example.airconapp.di.NetworkModule
 
 class EndTimeWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
-    private val airconApiService = NetworkModule.airconApiService
+    private val airconApiService get() = NetworkModule.airconApiService
 
     override suspend fun doWork(): Result {
+        NetworkModule.initialize(applicationContext)
         val scheduleId = inputData.getInt("SCHEDULE_ID", -1)
         if (scheduleId == -1) {
             Log.e("EndTimeWorker", "No SCHEDULE_ID provided.")
@@ -37,6 +38,7 @@ class EndTimeWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             Log.d("EndTimeWorker", "Successfully turned off aircon for schedule ID $scheduleId.")
             Result.success()
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             Log.e("EndTimeWorker", "Failed to execute end time for schedule ID $scheduleId: ${e.message}")
             Result.retry()
         }

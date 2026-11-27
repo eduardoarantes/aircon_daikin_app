@@ -1,5 +1,8 @@
 package com.example.airconapp.ui.screens
 
+import com.example.airconapp.domain.TemperatureUnit
+import com.example.airconapp.domain.displayTemp
+import com.example.airconapp.domain.label
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -58,6 +61,7 @@ fun SceneEditScreen(
     scene: Scene?,
     current: ControlInfo?,
     deviceZones: List<Zone>,
+    temperatureUnit: TemperatureUnit,
     onSave: (Scene) -> Unit,
     onDelete: (Scene) -> Unit,
     onClose: () -> Unit
@@ -161,6 +165,7 @@ fun SceneEditScreen(
 
                 TemperatureCard(
                     temperature = temperature,
+                    temperatureUnit = temperatureUnit,
                     accent = accent,
                     enabled = mode.hasSetpoint,
                     onChange = { temperature = it.coerceIn(SceneLogic.TEMPERATURE_RANGE) }

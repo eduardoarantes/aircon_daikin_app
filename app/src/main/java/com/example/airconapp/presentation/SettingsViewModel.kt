@@ -8,6 +8,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.airconapp.di.NetworkModule
 import com.example.airconapp.data.discovery.DaikinDiscovery
 import com.example.airconapp.data.remote.EnrolResult
+import com.example.airconapp.domain.ThemeMode
+import com.example.airconapp.ui.theme.ThemeSetting
+import com.example.airconapp.domain.TemperatureUnit
 import com.example.airconapp.domain.SimpleModeLogic
 import com.example.airconapp.wallpanel.WallPanel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +19,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val _temperatureUnit = MutableStateFlow(NetworkModule.getTemperatureUnit())
+    val temperatureUnit = _temperatureUnit.asStateFlow()
+
+    private val _themeMode = MutableStateFlow(NetworkModule.getThemeMode())
+    val themeMode = _themeMode.asStateFlow()
+
+    fun setThemeMode(mode: ThemeMode) {
+        _themeMode.value = mode
+    }
+
+    fun setTemperatureUnit(unit: TemperatureUnit) {
+        _temperatureUnit.value = unit
+    }
 
     private val _apiIp = MutableStateFlow(NetworkModule.getBaseUrl())
     val apiIp: StateFlow<String> = _apiIp.asStateFlow()
@@ -185,7 +202,35 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _useMockMode.value = useMock
     }
 
+    /** Compared on each settings-field update; reverting an edit clears the pending changes. */
+    val hasUnsavedChanges: Boolean
+        get() = _temperatureUnit.value != NetworkModule.getTemperatureUnit() ||
+            _themeMode.value != NetworkModule.getThemeMode() ||
+            _apiIp.value != NetworkModule.getBaseUrl() ||
+            _useMockMode.value != NetworkModule.getUseMockApi() ||
+            _simpleModeEnabled.value != NetworkModule.getSimpleModeEnabled() ||
+            _wallPanelEnabled.value != NetworkModule.getWallPanelEnabled() ||
+            _simpleModeZone.value != NetworkModule.getSimpleModeZone() ||
+            _simpleModeStartTemperature.value != NetworkModule.getSimpleModeStartTemperature()
+
+    val canSaveSettings: Boolean
+        get() = !_simpleModeEnabled.value || _simpleModeZone.value != null
+
+    fun discardChanges() {
+        _temperatureUnit.value = NetworkModule.getTemperatureUnit()
+        _themeMode.value = NetworkModule.getThemeMode()
+        _apiIp.value = NetworkModule.getBaseUrl()
+        _useMockMode.value = NetworkModule.getUseMockApi()
+        _simpleModeEnabled.value = NetworkModule.getSimpleModeEnabled()
+        _wallPanelEnabled.value = NetworkModule.getWallPanelEnabled()
+        _simpleModeZone.value = NetworkModule.getSimpleModeZone()
+        _simpleModeStartTemperature.value = NetworkModule.getSimpleModeStartTemperature()
+    }
+
     fun saveSettings() {
+        if (!canSaveSettings) return
+        NetworkModule.setTemperatureUnit(_temperatureUnit.value)
+        ThemeSetting.set(getApplication(), _themeMode.value)
         NetworkModule.setBaseUrl(_apiIp.value)
         NetworkModule.setUseMockApi(_useMockMode.value)
         NetworkModule.setSimpleModeEnabled(_simpleModeEnabled.value)

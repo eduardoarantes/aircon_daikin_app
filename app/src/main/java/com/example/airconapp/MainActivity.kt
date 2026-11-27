@@ -46,13 +46,16 @@ class MainActivity : ComponentActivity() {
     }
 
     /** The wall panel stays silent: the volume buttons do nothing while it is active. */
-    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
-        val isVolumeKey = event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP ||
-            event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN ||
-            event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_MUTE
-        if (isVolumeKey && NetworkModule.isWallPanelActive()) return true
-        return super.dispatchKeyEvent(event)
-    }
+    private fun blocksVolumeKey(keyCode: Int): Boolean = NetworkModule.isWallPanelActive() &&
+        (keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP ||
+            keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN ||
+            keyCode == android.view.KeyEvent.KEYCODE_VOLUME_MUTE)
+
+    override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent): Boolean =
+        blocksVolumeKey(keyCode) || super.onKeyDown(keyCode, event)
+
+    override fun onKeyUp(keyCode: Int, event: android.view.KeyEvent): Boolean =
+        blocksVolumeKey(keyCode) || super.onKeyUp(keyCode, event)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -99,6 +102,7 @@ class MainActivity : ComponentActivity() {
                     androidx.compose.runtime.LaunchedEffect(homePressCount) {
                         if (homePressCount > 0) navController.popBackStack("main_control", inclusive = false)
                     }
+                    val temperatureUnit by mainViewModel.temperatureUnit.collectAsState()
                     NavHost(navController = navController, startDestination = "main_control") {
                         composable("main_control") {
                             val controlInfo by mainViewModel.controlInfo.collectAsState()
@@ -147,6 +151,7 @@ class MainActivity : ComponentActivity() {
                                     sensorInfo = sensorInfo,
                                     zoneName = simpleModeZone,
                                     startTemperature = simpleModeStartTemperature,
+                                    temperatureUnit = temperatureUnit,
                                     error = error,
                                     onToggle = { mainViewModel.toggleSimpleMode() },
                                     // Shown over the lock screen, so Settings needs an unlock first
@@ -194,6 +199,7 @@ class MainActivity : ComponentActivity() {
                             // Wait for the saved schedule before building the form from it
                             if (id < 0 || loaded?.id == id) {
                                 ScheduleEditScreen(
+                                    temperatureUnit = temperatureUnit,
                                     schedule = if (id < 0) null else loaded,
                                     current = currentControl,
                                     deviceZones = currentZones.orEmpty(),
@@ -216,6 +222,7 @@ class MainActivity : ComponentActivity() {
                             val currentZones by mainViewModel.zoneStatus.collectAsState()
                             val currentControl by mainViewModel.controlInfo.collectAsState()
                             SceneEditScreen(
+                                temperatureUnit = temperatureUnit,
                                 scene = scene,
                                 current = currentControl,
                                 deviceZones = currentZones.orEmpty(),

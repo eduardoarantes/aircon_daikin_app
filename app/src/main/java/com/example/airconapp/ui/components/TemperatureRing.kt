@@ -1,5 +1,8 @@
 package com.example.airconapp.ui.components
 
+import com.example.airconapp.domain.TemperatureUnit
+import com.example.airconapp.domain.displayTemp
+import com.example.airconapp.domain.label
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -88,6 +91,7 @@ fun TemperatureRing(
     modifier: Modifier = Modifier,
     ringSize: Dp = DESIGN_SIZE,
     slider: DialSlider? = null,
+    temperatureUnit: TemperatureUnit = TemperatureUnit.CELSIUS,
     onDrag: ((Float) -> Unit)? = null,
     onDragEnd: () -> Unit = {},
     onDragCancel: () -> Unit = {},
@@ -168,7 +172,7 @@ fun TemperatureRing(
                     .size(ringSize)
                     .semantics {
                         contentDescription = "Temperature"
-                        stateDescription = "${slider.value}°C"
+                        stateDescription = "${displayTemp(slider.value, temperatureUnit)}${label(temperatureUnit)}"
                         progressBarRangeInfo = ProgressBarRangeInfo(
                             slider.value.toFloat(),
                             slider.range.first.toFloat()..slider.range.last.toFloat(),

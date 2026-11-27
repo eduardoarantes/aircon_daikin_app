@@ -17,7 +17,7 @@ The app SHALL provide a temperature unit preference with values Celsius and Fahr
 
 #### Scenario: Changing the unit
 
-- **WHEN** the user selects Fahrenheit in Settings
+- **WHEN** the user selects Fahrenheit in Settings and saves the changes
 - **THEN** the preference is saved and temperatures across the app are shown in Fahrenheit until changed back
 
 ### Requirement: Display honours the selected unit
@@ -61,3 +61,32 @@ The setpoint steppers and dial SHALL continue to change the value in whole-Celsi
 
 - **WHEN** the user steps toward a limit in either unit
 - **THEN** the allowed range is the same Celsius range as today, expressed in the displayed unit
+
+### Requirement: Unsaved settings confirmation
+
+Temperature unit, theme, address, mock mode, Simple mode, wall-panel toggle, zone and start temperature SHALL remain draft settings until saved. Leaving Settings through its back arrow or Android Back with pending changes SHALL show a Save or Discard prompt. Explicit remote-access setup and kiosk actions retain their existing action buttons.
+
+#### Scenario: Save pending changes
+
+- **WHEN** the user changes the unit and chooses Save in the exit prompt
+- **THEN** the settings are persisted and the app displays the saved unit
+
+#### Scenario: Discard pending changes
+
+- **WHEN** the user changes any draft setting and chooses Discard
+- **THEN** the app exits Settings with the saved settings unchanged
+
+#### Scenario: Continue editing
+
+- **WHEN** the exit prompt is dismissed
+- **THEN** Settings stays open with the pending edits intact
+
+#### Scenario: Unchanged settings
+
+- **WHEN** the user leaves Settings without changes, or after reverting edits to their saved values
+- **THEN** the app exits without a confirmation prompt
+
+#### Scenario: Invalid Simple mode draft
+
+- **WHEN** Simple mode is enabled without a selected zone
+- **THEN** Save is disabled in the exit prompt, and the user can discard or dismiss the prompt to select a zone

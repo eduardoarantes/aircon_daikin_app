@@ -55,6 +55,7 @@ fun ZonesScreen(
     val zones by viewModel.zoneStatus.collectAsState()
     val controlInfo by viewModel.controlInfo.collectAsState()
     val isConnected by viewModel.isConnected.collectAsState()
+    val transportMode by viewModel.transportMode.collectAsState()
     val enabled = isConnected == true
     val textAccent = textAccent(controlInfo?.pow == "1", accent)
 
@@ -75,7 +76,7 @@ fun ZonesScreen(
                 if (list != null) {
                     Text("${list.count { it.isOn }} of ${list.size} zones on", fontSize = 13.sp, color = AirconColors.TextMuted)
                 } else {
-                    ConnectionStatus(isConnected)
+                    ConnectionStatus(isConnected, transportMode)
                 }
             }
             val canSetAll = enabled && !list.isNullOrEmpty()
