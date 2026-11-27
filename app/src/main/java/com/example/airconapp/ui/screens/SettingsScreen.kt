@@ -133,7 +133,7 @@ fun SettingsScreen(
             SettingsNavRow(
                 icon = Icons.Outlined.Wifi,
                 title = SettingsPage.CONNECTION.title,
-                summary = if (useMockMode) "Mock mode" else hostOf(apiIp),
+                summary = if (useMockMode) "Test mode" else hostOf(apiIp),
                 onClick = { onOpenPage(SettingsPage.CONNECTION) }
             )
             SettingsNavRow(
@@ -338,7 +338,7 @@ private fun ConnectionContent(viewModel: SettingsViewModel) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text("Use Mock Mode", style = MaterialTheme.typography.titleMedium)
+        Text("Use Test Mode", style = MaterialTheme.typography.titleMedium)
         Switch(
             checked = useMockMode,
             onCheckedChange = { viewModel.setUseMockMode(it) }
