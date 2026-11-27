@@ -47,3 +47,21 @@
 - `./gradlew testDebugUnitTest assembleDebug`: passed, 66 tests. Regression coverage includes temperature/theme drafts, all saved settings fields, reverting/discarding, save persistence, and invalid Simple mode zone selection.
 - Emulator with mock API: confirmed unsaved temperature choices do not change stored preferences; toolbar Back and Android Back both prompt; dismiss keeps editing; Discard leaves saved Celsius unchanged; Save commits Fahrenheit and updates Controls; unchanged/reverted settings exit directly; theme edits prompt and can be discarded; saved Fahrenheit survives process restart.
 - Restored emulator preferences and databases byte-for-byte after verification. This follow-up supersedes the original immediate-persistence behavior: unit and theme changes now take effect when saved.
+
+## 6. Performance and security review fixes
+
+- [x] 6.1 Authorize published shortcut commands with an installation-private token, reject missing/forged commands, and exclude the token from backup/transfer.
+- [x] 6.2 Flush only pending edits on ViewModel clear; unchanged, reverted, and already-sent settings must not be replayed.
+- [x] 6.3 Initialize services at application startup and lazily access them in workers after worker initialization, so scheduled work survives a cold process start.
+- [x] 6.4 Coalesce status refreshes, await them in the polling loop, and cancel in-flight requests when hidden or cleared.
+- [x] 6.5 Publish control/zone state before optional sensor requests and preserve cancellation.
+- [x] 6.6 Remember failed LAN probes for 30 seconds per active network/address when remote access is available; retry local on a network change or deadline and preserve write safety.
+- [x] 6.7 Fix the three lint errors, verify debug/release builds and regression/integration tests, and exclude preview tooling from release.
+
+### Performance/security verification (2026-11-27)
+
+- `./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease`: passed. 84 JVM tests, zero failures/skips; lint has zero errors (43 dependency/style warnings remain).
+- Regression tests cover no writes on unchanged close, flushing only actual pending edits once, reverting/already-sent edits, single refresh ownership and cancellation on hide, controls available while sensors wait, polling restart, missing/forged shortcut capabilities, persistent authorization, failed-LAN reuse, network changes, local recovery after 30 seconds, cancellation, and existing ambiguous-write safety.
+- `StartupSecurityTest` on the local emulator: four tests passed with no skips. Verified process initialization without an activity, construction/startup of both scheduled workers using missing IDs (no adapter commands), forged shortcut intents enqueueing no commands, and a published authorized shortcut successfully running in one tap against mock mode.
+- Emulator launch check confirmed Controls loads with the default ViewModel factory. Original emulator preferences and databases are restored after verification.
+- Release manifest uses AirconApplication and contains no preview tooling activity. No real-adapter commands were used in tests.

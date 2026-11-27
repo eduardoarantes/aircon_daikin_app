@@ -36,7 +36,9 @@ private const val FAILED_ATTEMPTS_BEFORE_GIVING_UP = 3
 /** How long after the user's last change it is sent to the unit. */
 private const val SEND_DELAY_MS = 2_000L
 
-class MainViewModel : ViewModel() { // Removed airconApiService from constructor
+class MainViewModel(
+    private val apiProvider: () -> AirconApiService = { NetworkModule.airconApiService }
+) : ViewModel() {
 
     val temperatureUnit = NetworkModule.temperatureUnit
 
@@ -108,10 +110,11 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
     private val zoneSend = DelayedSend(_zoneStatus) { airconApiService.setZoneSetting(it) }
 
     private var refreshJob: Job? = null
+    private var statusJob: Job? = null
 
     // Get the current API service from NetworkModule
     private val airconApiService: AirconApiService
-        get() = NetworkModule.airconApiService
+        get() = apiProvider()
 
     /** Fresh install: find the aircon on the network before the first fetch. */
     private val setup = viewModelScope.launch { NetworkModule.autoConfigureIfNeeded() }
@@ -134,7 +137,7 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
         refreshJob = viewModelScope.launch {
             setup.join()
             while (isActive) {
-                fetchAirconStatus()
+                fetchAirconStatus().join()
                 delay(5000) // Refresh every 5 seconds
             }
         }
@@ -144,19 +147,22 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
     fun onAppHidden() {
         visible = false
         refreshJob?.cancel()
+        statusJob?.cancel()
         _showConnectionErrorDialog.value = false
     }
 
     override fun onCleared() {
         super.onCleared()
         refreshJob?.cancel()
+        statusJob?.cancel()
         // The screen is going away: send what the user just changed instead of dropping it
         controlSend.flush()
         zoneSend.flush()
     }
 
-    fun fetchAirconStatus() {
-        viewModelScope.launch {
+    fun fetchAirconStatus(): Job {
+        statusJob?.takeIf { it.isActive }?.let { return it }
+        return viewModelScope.launch {
             val generation = commandGeneration
             _isLoading.value = true
             _error.value = null
@@ -167,8 +173,6 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
             try {
                 val info = airconApiService.getControlInfo()
                 val zones = airconApiService.getZoneSetting().zones
-                // Ambient temperature is optional: a failure here must not hide the controls
-                _sensorInfo.value = runCatching { airconApiService.getSensorInfo() }.getOrNull()
                 if (commandsInFlight == 0 && generation == commandGeneration && !controlSend.busy && !zoneSend.busy) {
                     _controlInfo.value = info
                     _zoneStatus.value = zones
@@ -178,6 +182,14 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
                 _isConnected.value = true
                 // Connection is back (e.g. Wi-Fi came up after boot): drop any stale error
                 _showConnectionErrorDialog.value = false
+                // Publish usable controls before waiting for the optional sensor reading.
+                _sensorInfo.value = try {
+                    airconApiService.getSensorInfo()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                }
             } catch (e: Exception) {
                 if (e is kotlin.coroutines.cancellation.CancellationException) throw e
                 // A request that failed because the phone was locked says nothing about the aircon
@@ -203,7 +215,7 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
             } finally {
                 _isLoading.value = false
             }
-        }
+        }.also { statusJob = it }
     }
 
     /**
@@ -221,6 +233,7 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
         private var timer: Job? = null
         private var sending = 0
         private var failure = ""
+        private var pending = false
 
         /** A change is waiting or being sent; status polls must not overwrite it. */
         val busy: Boolean get() = timer != null || sending > 0
@@ -228,7 +241,10 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
         fun change(failureMessage: String, update: (T) -> T) {
             val current = state.value ?: return
             if (!busy) confirmed = current
-            state.value = update(current)
+            val updated = update(current)
+            if (updated == current) return
+            state.value = updated
+            pending = true
             failure = failureMessage
             commandGeneration++
             timer?.cancel()
@@ -241,12 +257,15 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
 
         /** Drops a change that hasn't been sent yet. */
         fun cancel() {
+            pending = false
             timer?.cancel()
             timer = null
         }
 
         /** Sends the latest state now (also used when the screen closes). */
         fun flush() {
+            if (!pending) return
+            pending = false
             timer?.cancel()
             timer = null
             val value = state.value ?: return
@@ -260,8 +279,8 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
                     confirmed = value
                 } catch (e: Exception) {
                     if (e is kotlin.coroutines.cancellation.CancellationException) throw e
-                // A request that failed because the phone was locked says nothing about the aircon
-                if (!visible) return@launch
+                    // A request that failed while hidden should not display an error.
+                    if (!visible) return@launch
                     if (state.value == value) confirmed?.let { state.value = it }
                     _error.value = "$message: ${e.message}"
                     _messages.trySend(message)

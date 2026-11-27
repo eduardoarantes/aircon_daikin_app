@@ -36,7 +36,16 @@ class RemoteFallbackApiService(
     private val reEnrol: suspend () -> Boolean,
     private val reportMode: (TransportMode) -> Unit,
     private val preferCloud: () -> Boolean = { false },
+    private val networkKey: () -> Any? = { Unit },
+    private val monotonicMillis: () -> Long = { System.nanoTime() / 1_000_000 },
 ) : AirconApiService {
+
+    private data class LocalFailure(val network: Any?, val at: Long)
+    @Volatile private var lastLocalFailure: LocalFailure? = null
+
+    companion object {
+        private const val LOCAL_RETRY_INTERVAL_MS = 30_000L
+    }
 
     override suspend fun getControlInfo(): ControlInfo = withFallback(isWrite = false) { it.getControlInfo() }
     override suspend fun setControlInfo(controlInfo: ControlInfo): String = withFallback(isWrite = true) { it.setControlInfo(controlInfo) }
@@ -52,13 +61,30 @@ class RemoteFallbackApiService(
             return tryCloud(cloud(), allowReEnrol = false, op = op)
         }
 
+        val network = networkKey()
+        val failure = lastLocalFailure
+        if (failure != null && failure.network == network &&
+            monotonicMillis() - failure.at < LOCAL_RETRY_INTERVAL_MS
+        ) {
+            // Only skip the recently failed LAN when a remote credential is available.
+            // A changed network/address, or the retry deadline, restores local priority.
+            cloud()?.let { return tryCloud(it, allowReEnrol = false, op = op) }
+        }
+
         // 1. Prefer the local adapter.
-        tryLocal(isWrite, op)?.let { return it.value }
+        tryLocal(isWrite, op)?.let {
+            lastLocalFailure = null
+            return it.value
+        }
 
         // 2. Local unreachable: the adapter may have moved. Rediscover and retry local once.
         if (heal()) {
-            tryLocal(isWrite, op)?.let { return it.value }
+            tryLocal(isWrite, op)?.let {
+                lastLocalFailure = null
+                return it.value
+            }
         }
+        lastLocalFailure = LocalFailure(network, monotonicMillis())
 
         // 3. Fall back to the cloud relay if remote access is enrolled.
         return tryCloud(cloud(), allowReEnrol = true, op = op)

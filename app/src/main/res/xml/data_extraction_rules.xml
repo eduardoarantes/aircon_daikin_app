@@ -8,8 +8,10 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="aircon_remote_creds.xml" />
+        <exclude domain="sharedpref" path="aircon_shortcut_auth.xml" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="aircon_remote_creds.xml" />
+        <exclude domain="sharedpref" path="aircon_shortcut_auth.xml" />
     </device-transfer>
 </data-extraction-rules>

@@ -110,6 +110,11 @@ object NetworkModule {
             reEnrol = { enrolRemoteAccess() == EnrolResult.Success },
             reportMode = { _transportMode.value = it },
             preferCloud = { isOnCellularOnlyNetwork() },
+            networkKey = {
+                getBaseUrl() to runCatching {
+                    _applicationContext.getSystemService(ConnectivityManager::class.java)?.activeNetwork?.networkHandle
+                }.getOrNull()
+            },
         )
     }
 
@@ -317,7 +322,7 @@ object NetworkModule {
      * to its new IP if it moved. Returns true if the IP changed, so the caller can retry.
      */
     suspend fun healConnection(): Boolean {
-        if (getUseMockApi()) return false
+        if (getUseMockApi() || isOnCellularOnlyNetwork()) return false
         return discoverAndApply(force = false)
     }
 

@@ -38,3 +38,12 @@ See proposal.md — Why. Temperature is Celsius everywhere: setpoints are `Int` 
 SettingsViewModel holds draft values for the temperature unit, theme, and existing Save Settings fields. The unit remains reactive within Settings; saving publishes it to the shared NetworkModule state for other screens. Theme also applies on Save. Dirty detection compares draft values with the saved preferences, so reverting an edit clears the pending state. Both back paths open the same confirmation dialog. Save uses the existing save/navigation callback; Discard resets drafts and returns; dismissal continues editing. The existing zone requirement applies equally to the dialog and Save Settings button.
 
 Explicit remote-access and kiosk actions keep their existing commit behavior. The Home App button still saves settings before opening Android settings.
+
+## Performance and security follow-up
+
+- Published shortcut intents carry a random 256-bit token stored in private preferences excluded from backup and transfer. The exported shortcut entry checks the token and allowed action before enqueuing work. Android hides shortcut intents from other apps; missing/forged capabilities fail closed. Startup republishes shortcuts so pinned commands receive the installation's current token.
+- Delayed command queues explicitly track pending edits. Closing flushes pending edits only, preserving the existing final-send behavior without replaying fetched or already-sent state.
+- Application startup initializes NetworkModule. Scheduled workers also initialize it at work entry and resolve dependencies lazily, avoiding constructor-time access and stale captured services. Worker cancellation propagates.
+- A single status job coalesces callers; polling awaits completion before its five-second delay. Hiding/clearing cancels that job. Essential control/zone state is published before the optional sensor read, whose cancellation is rethrown.
+- A failed LAN attempt is remembered for 30 seconds using a monotonic clock and active-network/adapter-address key. Subsequent operations may use an available remote credential during that interval. A new network, changed adapter address, or expired interval restores local priority. No credential means local attempts remain enabled. Ambiguous local writes retain their no-replay rule. Cellular-only routing remains direct-to-cloud.
+- Volume key down/up callbacks replace the restricted dispatch override; indentation is corrected. Preview tooling is a debug-only dependency.

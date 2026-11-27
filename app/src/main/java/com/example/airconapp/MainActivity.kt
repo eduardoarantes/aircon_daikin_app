@@ -46,13 +46,16 @@ class MainActivity : ComponentActivity() {
     }
 
     /** The wall panel stays silent: the volume buttons do nothing while it is active. */
-    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
-        val isVolumeKey = event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP ||
-            event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN ||
-            event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_MUTE
-        if (isVolumeKey && NetworkModule.isWallPanelActive()) return true
-        return super.dispatchKeyEvent(event)
-    }
+    private fun blocksVolumeKey(keyCode: Int): Boolean = NetworkModule.isWallPanelActive() &&
+        (keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP ||
+            keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN ||
+            keyCode == android.view.KeyEvent.KEYCODE_VOLUME_MUTE)
+
+    override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent): Boolean =
+        blocksVolumeKey(keyCode) || super.onKeyDown(keyCode, event)
+
+    override fun onKeyUp(keyCode: Int, event: android.view.KeyEvent): Boolean =
+        blocksVolumeKey(keyCode) || super.onKeyUp(keyCode, event)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -6,4 +6,5 @@
 -->
 <full-backup-content>
     <exclude domain="sharedpref" path="aircon_remote_creds.xml" />
+    <exclude domain="sharedpref" path="aircon_shortcut_auth.xml" />
 </full-backup-content>
