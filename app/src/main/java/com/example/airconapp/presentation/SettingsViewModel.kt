@@ -217,6 +217,47 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    /** True while an adapter setting is being written; the controls are disabled meanwhile. */
+    private val _adapterWriting = MutableStateFlow(false)
+    val adapterWriting: StateFlow<Boolean> = _adapterWriting.asStateFlow()
+
+    /** Result of the last failed adapter write; cleared by the next one. */
+    private val _adapterMessage = MutableStateFlow<String?>(null)
+    val adapterMessage: StateFlow<String?> = _adapterMessage.asStateFlow()
+
+    private val loadedAdapter: AdapterInfo?
+        get() = (_adapterState.value as? AdapterState.Loaded)?.info
+
+    /** Changes the adapter's time zone, keeping its current automatic DST setting. */
+    fun setAdapterTimeZone(zoneCode: Int) {
+        val dst = loadedAdapter?.automaticDst ?: return
+        writeAdapter { NetworkModule.setAdapterTimeZone(zoneCode, dst) }
+    }
+
+    /** Turns automatic DST on or off, keeping the adapter's current time zone. */
+    fun setAdapterAutomaticDst(enabled: Boolean) {
+        val zone = loadedAdapter?.timeZoneCode ?: return
+        writeAdapter { NetworkModule.setAdapterTimeZone(zone, enabled) }
+    }
+
+    fun setAdapterTimeSyncDisabled(disabled: Boolean) {
+        if (loadedAdapter == null) return
+        writeAdapter { NetworkModule.setAdapterTimeSyncDisabled(disabled) }
+    }
+
+    /** Writes immediately (like the official app), then re-reads so the page shows the unit's real state. */
+    private fun writeAdapter(write: suspend () -> Boolean) {
+        if (_adapterWriting.value) return
+        viewModelScope.launch {
+            _adapterWriting.value = true
+            _adapterMessage.value = null
+            val ok = write()
+            if (!ok) _adapterMessage.value = "The adapter didn't accept the change. Check you're on your home Wi-Fi and try again."
+            NetworkModule.readAdapterInfo()?.let { _adapterState.value = AdapterState.Loaded(it) }
+            _adapterWriting.value = false
+        }
+    }
+
     /** Null until a test runs; [connectionTesting] is true while one is in progress. */
     private val _connectionTest = MutableStateFlow<ConnectionTestResult?>(null)
     val connectionTest: StateFlow<ConnectionTestResult?> = _connectionTest.asStateFlow()

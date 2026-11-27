@@ -22,19 +22,23 @@ class AdapterInfoParserTest {
         assertEquals("90:E8:68:BD:54:4C", info.macAddress)
         assertEquals(true, info.outOfHome)
         assertEquals(LocalDateTime.of(2026, 11, 28, 6, 51, 11), info.dateTime)
+        assertEquals(345, info.timeZoneCode)
         assertEquals("Sydney", info.timeZone)
         assertEquals(true, info.automaticDst)
         assertEquals(false, info.timeSyncDisabled)
     }
 
     @Test fun `home only means out of home is off`() {
-        val info = AdapterInfoParser.parse(null, null, "ret=OK,method=home_only")
-        assertEquals(false, info.outOfHome)
+        // The official app writes "home only"; it may come back plain or URL-encoded
+        assertEquals(false, AdapterInfoParser.parse(null, null, "ret=OK,method=home only").outOfHome)
+        assertEquals(false, AdapterInfoParser.parse(null, null, "ret=OK,method=home%20only").outOfHome)
+        assertEquals(false, AdapterInfoParser.parse(null, null, "ret=OK,method=home_only").outOfHome)
     }
 
-    @Test fun `unknown zone code is shown as its code, not guessed`() {
-        val info = AdapterInfoParser.parse(null, "ret=OK,cur=2026/1/2 13:04:05,dst=0,zone=12", null)
-        assertEquals("Zone code 12", info.timeZone)
+    @Test fun `zone codes map to the official app's names, unknown ones show their code`() {
+        val info = AdapterInfoParser.parse(null, "ret=OK,cur=2026/1/2 13:04:05,dst=0,zone=283", null)
+        assertEquals("Perth", info.timeZone)
+        assertEquals("Zone code 999", AdapterInfoParser.parse(null, "ret=OK,zone=999", null).timeZone)
         assertEquals(false, info.automaticDst)
         assertEquals(LocalDateTime.of(2026, 1, 2, 13, 4, 5), info.dateTime)
     }

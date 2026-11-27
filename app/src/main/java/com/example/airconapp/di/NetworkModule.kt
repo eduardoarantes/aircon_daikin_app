@@ -4,7 +4,9 @@ import android.net.ConnectivityManager
 import com.example.airconapp.data.remote.isCellularOnly
 import android.content.Context
 import android.content.SharedPreferences
+import com.example.airconapp.data.AdapterCommands
 import com.example.airconapp.data.AdapterInfo
+import com.example.airconapp.data.DaikinTimeZones
 import com.example.airconapp.data.AdapterInfoParser
 import com.example.airconapp.data.AirconApiService
 import com.example.airconapp.data.ConnectionTestResult
@@ -221,7 +223,7 @@ object NetworkModule {
      * (these reads aren't available through the cloud relay). Mock mode returns sample values.
      */
     suspend fun readAdapterInfo(): AdapterInfo? {
-        if (getUseMockApi()) return MOCK_ADAPTER_INFO
+        if (getUseMockApi()) return mockAdapterInfo
         val basic = readLocal(AdapterInfoParser.BASIC_INFO_PATH)
         if (!AdapterInfoParser.isOk(basic)) return null
         return AdapterInfoParser.parse(
@@ -247,15 +249,53 @@ object NetworkModule {
         return ConnectionTestResult(local, remote)
     }
 
-    private val MOCK_ADAPTER_INFO = AdapterInfo(
+    /** Sample adapter for mock mode; the setting writes update it so the UI behaves like the real thing. */
+    @Volatile private var mockAdapterInfo = AdapterInfo(
         firmware = "1.3.0",
         macAddress = "00:00:00:00:00:00",
         outOfHome = true,
         dateTime = java.time.LocalDateTime.of(2026, 1, 1, 12, 0, 0),
+        timeZoneCode = 345,
         timeZone = "Sydney",
         automaticDst = true,
         timeSyncDisabled = false,
     )
+
+    /** One LAN write; true only when the adapter answers `ret=OK`. Never logged. */
+    private suspend fun writeLocal(pathAndQuery: String): Boolean =
+        AdapterInfoParser.isOk(readLocal(pathAndQuery))
+
+    /**
+     * Sets the adapter's time zone and automatic DST together, as the official app does
+     * (`set_timezone` always carries both). Home network only.
+     */
+    suspend fun setAdapterTimeZone(zoneCode: Int, automaticDst: Boolean): Boolean {
+        val command = AdapterCommands.setTimeZone(zoneCode, automaticDst)
+        if (getUseMockApi()) {
+            mockAdapterInfo = mockAdapterInfo.copy(
+                timeZoneCode = zoneCode,
+                timeZone = DaikinTimeZones.nameOf(zoneCode),
+                automaticDst = automaticDst,
+            )
+            return true
+        }
+        return writeLocal(command)
+    }
+
+    /**
+     * Daikin's "Disable Time Sync with internet". Like the official app, a successful change is
+     * followed by pushing the phone's clock (`notify_date_time`): local time when sync is disabled,
+     * UTC when it is turned back on. True when the switch itself was accepted.
+     */
+    suspend fun setAdapterTimeSyncDisabled(disabled: Boolean): Boolean {
+        if (getUseMockApi()) {
+            mockAdapterInfo = mockAdapterInfo.copy(timeSyncDisabled = disabled)
+            return true
+        }
+        if (!writeLocal(AdapterCommands.setTimeSyncDisabled(disabled))) return false
+        writeLocal(AdapterCommands.notifyDateTime(disabled, java.time.ZonedDateTime.now()))
+        return true
+    }
 
     /** Drops the cached HTTP client / API service so the next access rebuilds them. */
     private fun invalidateService() {

@@ -66,6 +66,9 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.airconapp.data.AdapterInfo
+import com.example.airconapp.data.DaikinTimeZones
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import com.example.airconapp.di.NetworkModule
 import kotlinx.coroutines.delay
 import java.time.format.DateTimeFormatter
@@ -589,7 +592,7 @@ private fun AdapterContent(viewModel: SettingsViewModel) {
                 Text("Try again")
             }
         }
-        is SettingsViewModel.AdapterState.Loaded -> AdapterDetails(current.info)
+        is SettingsViewModel.AdapterState.Loaded -> AdapterDetails(current.info, viewModel)
     }
 
     AdapterSection("Connection test") {
@@ -620,7 +623,11 @@ private fun AdapterContent(viewModel: SettingsViewModel) {
 }
 
 @Composable
-private fun AdapterDetails(info: AdapterInfo) {
+private fun AdapterDetails(info: AdapterInfo, viewModel: SettingsViewModel) {
+    val writing by viewModel.adapterWriting.collectAsState()
+    val message by viewModel.adapterMessage.collectAsState()
+    var pickingZone by rememberSaveable { mutableStateOf(false) }
+
     // The adapter reports its clock once; keep it ticking from when it was read
     val readAt = remember(info) { SystemClock.elapsedRealtime() }
     var now by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
@@ -642,19 +649,120 @@ private fun AdapterDetails(info: AdapterInfo) {
         )
     }
     AdapterSection("Time") {
+        Text(
+            "Changes here are sent to the adapter straight away.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         AdapterValueRow(
             "Adapter date and time",
             clock?.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)) ?: "—"
         )
-        AdapterValueRow("Time zone", info.timeZone ?: "—")
-        AdapterValueRow("Automatic DST", onOff(info.automaticDst))
-        AdapterValueRow("Disable time sync with internet", onOff(info.timeSyncDisabled))
+        // Like the official app: with internet sync off the adapter follows the phone's clock,
+        // so time zone and DST don't apply and are hidden
+        if (info.timeSyncDisabled != true) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = !writing && info.timeZoneCode != null) { pickingZone = true }
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text("Time zone", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Text(info.timeZone ?: "—", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+            }
+            AdapterSwitchRow(
+                label = "Automatic DST",
+                checked = info.automaticDst == true,
+                enabled = !writing && info.automaticDst != null && info.timeZoneCode != null,
+                onCheckedChange = viewModel::setAdapterAutomaticDst
+            )
+        }
+        AdapterSwitchRow(
+            label = "Disable time sync with internet",
+            checked = info.timeSyncDisabled == true,
+            enabled = !writing && info.timeSyncDisabled != null,
+            onCheckedChange = viewModel::setAdapterTimeSyncDisabled
+        )
+        Text(
+            "When on, the adapter takes its date and time from this phone instead of the internet.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (writing) Text("Saving to the adapter…", style = MaterialTheme.typography.bodySmall)
+        message?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
     }
     AdapterSection("Information") {
         AdapterValueRow("Firmware version", info.firmware ?: "—")
         AdapterValueRow("IP address", hostOf(NetworkModule.getBaseUrl()))
         AdapterValueRow("MAC address", info.macAddress ?: "—")
     }
+
+    if (pickingZone) {
+        TimeZonePickerDialog(
+            selected = info.timeZoneCode,
+            onDismiss = { pickingZone = false },
+            onPick = { code ->
+                pickingZone = false
+                if (code != info.timeZoneCode) viewModel.setAdapterTimeZone(code)
+            }
+        )
+    }
+}
+
+@Composable
+private fun AdapterSwitchRow(label: String, checked: Boolean, enabled: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Switch(checked = checked, enabled = enabled, onCheckedChange = onCheckedChange)
+    }
+}
+
+/** The adapter's own zone list (from the official app), searchable by name. */
+@Composable
+private fun TimeZonePickerDialog(selected: Int?, onDismiss: () -> Unit, onPick: (Int) -> Unit) {
+    var query by rememberSaveable { mutableStateOf("") }
+    val zones = remember(query) {
+        DaikinTimeZones.all.filter { it.second.contains(query.trim(), ignoreCase = true) }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Time zone") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = { Text("Search") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
+                    items(zones, key = { it.first }) { (code, name) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .selectable(selected = code == selected, onClick = { onPick(code) }, role = Role.RadioButton)
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = code == selected, onClick = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(name)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 @Composable
