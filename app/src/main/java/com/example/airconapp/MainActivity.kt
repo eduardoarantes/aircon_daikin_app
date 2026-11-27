@@ -26,6 +26,9 @@ import com.example.airconapp.ui.screens.HomeScreen
 import com.example.airconapp.ui.screens.ScheduleEditScreen
 import com.example.airconapp.ui.screens.SceneEditScreen
 import com.example.airconapp.ui.screens.SettingsScreen
+import com.example.airconapp.ui.screens.SettingsPage
+import com.example.airconapp.ui.screens.SettingsPageScreen
+import androidx.compose.runtime.remember
 import com.example.airconapp.ui.theme.AirconAppTheme
 import com.example.airconapp.ui.theme.ThemeSetting
 import com.example.airconapp.wallpanel.WallPanel
@@ -237,17 +240,34 @@ class MainActivity : ComponentActivity() {
                                 onClose = { navController.popBackStack() }
                             )
                         }
+                        val onSettingsSaved = {
+                            // Pick up simple mode / wall panel changes now, not at the next poll
+                            mainViewModel.fetchAirconStatus()
+                            navController.navigate("main_control") { popUpTo("main_control") { inclusive = true } }
+                        }
                         composable("settings") {
                             val settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.factory(application))
                             SettingsScreen(
                                 viewModel = settingsViewModel,
                                 onNavigateBack = { navController.popBackStack() },
-                                onSettingsSaved = {
-                                    // Pick up simple mode / wall panel changes now, not at the next poll
-                                    mainViewModel.fetchAirconStatus()
-                                    navController.navigate("main_control") { popUpTo("main_control") { inclusive = true } }
-                                }
+                                onOpenPage = { navController.navigate("settings/${it.route}") },
+                                onSettingsSaved = onSettingsSaved
                             )
+                        }
+                        // A themed settings page; shares the Settings home's view model so drafts carry across pages
+                        composable("settings/{page}") { entry ->
+                            val page = SettingsPage.fromRoute(entry.arguments?.getString("page"))
+                            val settingsEntry = remember(entry) { navController.getBackStackEntry("settings") }
+                            val settingsViewModel: SettingsViewModel =
+                                viewModel(viewModelStoreOwner = settingsEntry, factory = SettingsViewModel.factory(application))
+                            if (page != null) {
+                                SettingsPageScreen(
+                                    viewModel = settingsViewModel,
+                                    page = page,
+                                    onBack = { navController.popBackStack() },
+                                    onSettingsSaved = onSettingsSaved
+                                )
+                            }
                         }
                     }
                 }
