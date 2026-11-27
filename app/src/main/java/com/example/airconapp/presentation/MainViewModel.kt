@@ -4,12 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.airconapp.data.AirconApiService
 import com.example.airconapp.data.ControlInfo
+import com.example.airconapp.data.RemoteCredentialException
 import com.example.airconapp.data.SensorInfo
 import com.example.airconapp.data.Zone
 import com.example.airconapp.di.NetworkModule
 import com.example.airconapp.domain.FanSpeed
 import com.example.airconapp.domain.Scene
 import com.example.airconapp.data.SceneRunner
+import com.example.airconapp.data.remote.TransportMode
 import com.example.airconapp.domain.SimpleModeLogic
 import com.example.airconapp.domain.ZoneUsage
 import kotlinx.coroutines.CoroutineScope
@@ -54,6 +56,9 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
     private val _sensorInfo = MutableStateFlow<SensorInfo?>(null)
     val sensorInfo: StateFlow<SensorInfo?> = _sensorInfo
 
+    /** Whether the aircon is currently reached locally or over the cloud relay (for the UI). */
+    val transportMode: StateFlow<TransportMode> = NetworkModule.transportMode
+
     private val _simpleModeEnabled = MutableStateFlow(NetworkModule.getSimpleModeEnabled())
     val simpleModeEnabled: StateFlow<Boolean> = _simpleModeEnabled
 
@@ -73,6 +78,9 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
     private val _isConnected = MutableStateFlow<Boolean?>(null)
     private var failedAttempts = 0
     val isConnected: StateFlow<Boolean?> = _isConnected
+
+    /** So the "re-enrol from home" message is shown once per outage, not on every 5 s poll. */
+    private var remoteReEnrolReported = false
 
     /** One-off messages for a snackbar, e.g. a command the unit rejected. */
     private val _messages = Channel<String>(Channel.BUFFERED)
@@ -117,6 +125,7 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
     fun onAppVisible() {
         visible = true
         failedAttempts = 0
+        remoteReEnrolReported = false
         _showConnectionErrorDialog.value = false
         if (_isConnected.value == false) _isConnected.value = null
         refreshJob?.cancel()
@@ -163,6 +172,7 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
                     _zoneStatus.value = zones
                 }
                 failedAttempts = 0
+                remoteReEnrolReported = false
                 _isConnected.value = true
                 // Connection is back (e.g. Wi-Fi came up after boot): drop any stale error
                 _showConnectionErrorDialog.value = false
@@ -170,6 +180,13 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
                 if (e is kotlin.coroutines.cancellation.CancellationException) throw e
                 // A request that failed because the phone was locked says nothing about the aircon
                 if (!visible) return@launch
+                // Away with a stale cloud credential: tell the user to re-enrol from home, once.
+                if (e is RemoteCredentialException) {
+                    if (!remoteReEnrolReported) {
+                        remoteReEnrolReported = true
+                        _messages.trySend(e.message ?: "Remote access needs re-enrolling from your home network")
+                    }
+                }
                 // The aircon may have moved to a new IP: rediscover it and retry before
                 // bothering the user
                 if (NetworkModule.healConnection()) {

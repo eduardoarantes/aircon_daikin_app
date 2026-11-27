@@ -17,6 +17,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -31,6 +32,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.OutlinedButton
@@ -57,6 +61,11 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
     val startTemperature by viewModel.simpleModeStartTemperature.collectAsState()
     val context = LocalContext.current
     val discoveryStatus by viewModel.discoveryStatus.collectAsState()
+    val remoteEnrolled by viewModel.remoteEnrolled.collectAsState()
+    val remoteStatus by viewModel.remoteStatus.collectAsState()
+    val remoteBusy by viewModel.remoteBusy.collectAsState()
+    val manualUsername by viewModel.manualUsername.collectAsState()
+    val manualPassword by viewModel.manualPassword.collectAsState()
 
     Scaffold(
         topBar = {
@@ -87,6 +96,80 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
 
             HorizontalDivider()
 
+            // Remote access: enrol while on the home network, then control from anywhere.
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Remote access", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Control the aircon when you're away from home, through Daikin's cloud. " +
+                        "Set this up while connected to your home Wi-Fi.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedButton(
+                    onClick = { viewModel.enableRemoteAccess() },
+                    enabled = !remoteBusy,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(if (remoteEnrolled) "Refresh remote access" else "Enable remote access")
+                }
+                if (remoteEnrolled) {
+                    OutlinedButton(
+                        onClick = { viewModel.clearRemoteAccess() },
+                        enabled = !remoteBusy,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Turn off remote access", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+                remoteStatus?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.fillMaxWidth())
+                }
+
+                // Advanced: enter a credential by hand (for setup without reaching the adapter).
+                // Visibility lives in the ViewModel so it collapses itself on a successful save.
+                val showManual by viewModel.manualEntryVisible.collectAsState()
+                TextButton(
+                    onClick = { viewModel.toggleManualEntry() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(if (showManual) "Hide manual entry" else "Enter credentials manually")
+                }
+                if (showManual) {
+                    Text(
+                        "Advanced: enter the username and password for your Daikin remote account to " +
+                            "set up remote access without being on the home network.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = manualUsername,
+                        onValueChange = { viewModel.setManualUsername(it) },
+                        label = { Text("Username") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = manualPassword,
+                        onValueChange = { viewModel.setManualPassword(it) },
+                        label = { Text("Password") },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedButton(
+                        onClick = { viewModel.saveManualRemoteCredential() },
+                        enabled = !remoteBusy && manualUsername.isNotBlank() && manualPassword.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Save and enable")
+                    }
+                }
+            }
+
+            HorizontalDivider()
+
+            // Local network: the adapter's address, discovery and mock mode.
             // Address field full width, with Find underneath, so neither is squeezed on
             // narrow screens or with large font settings
             Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {

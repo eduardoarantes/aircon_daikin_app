@@ -94,3 +94,17 @@ The system SHALL store the cloud credential only on the device and SHALL NOT wri
 
 - **WHEN** the user clears the stored credential in settings
 - **THEN** the credential is removed from the device and subsequent unreachable-local operations surface the local connection error instead of using the cloud
+
+### Requirement: Manual credential entry
+
+The system SHALL allow the user to enrol remote access by entering their cloud account username (`id`) and password directly, deriving the server password (`spw`) via the relay's `get_spw`. Unlike automatic enrolment this SHALL NOT require local network access to the adapter. The entered password SHALL NOT be stored; only the username and the derived `spw` are retained.
+
+#### Scenario: Manual enrolment away from home
+
+- **WHEN** the user enters a valid username and password in the manual credential form and saves
+- **THEN** the app derives `spw` via `get_spw`, stores the username and `spw`, reports that remote access is on, and does not store the entered password
+
+#### Scenario: Manual entry is rejected
+
+- **WHEN** the user enters a username/password that the relay does not accept
+- **THEN** the app reports that the details could not be verified and no credential is stored

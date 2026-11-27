@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Auto Backup rules for Android 11 and below (android:fullBackupContent).
+  The cloud credential lives in its own prefs file and must never leave the device
+  (see the add-remote-cloud-control change, Credential confidentiality).
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="aircon_remote_creds.xml" />
+</full-backup-content>

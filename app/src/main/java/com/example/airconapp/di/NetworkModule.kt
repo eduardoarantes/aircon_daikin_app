@@ -4,25 +4,46 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.example.airconapp.data.AirconApiService
 import com.example.airconapp.data.AirconApiServiceImpl
+import com.example.airconapp.data.CloudRelay
+import com.example.airconapp.data.Endpoint
 import com.example.airconapp.data.mock.MockAirconApiService
 import com.example.airconapp.data.db.AppDatabase
+import com.example.airconapp.data.remote.EnrolResult
+import com.example.airconapp.data.remote.KeyValueStore
+import com.example.airconapp.data.remote.RemoteCredential
+import com.example.airconapp.data.remote.RemoteCredentialStore
+import com.example.airconapp.data.remote.RemoteEnroller
+import com.example.airconapp.data.remote.RemoteFallbackApiService
+import com.example.airconapp.data.remote.TransportMode
 import com.example.airconapp.domain.SimpleModeLogic
 import com.example.airconapp.domain.ThemeMode
 import com.example.airconapp.data.repo.SchedulerRepository
 import com.example.airconapp.data.repo.SceneRepository
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
+import io.ktor.client.request.url
 import com.example.airconapp.data.discovery.DaikinDiscovery
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
+import java.net.URLEncoder
 
 object NetworkModule {
 
     private const val PREFS_NAME = "aircon_app_prefs"
+
+    /**
+     * The cloud credential lives in its own prefs file so it can be excluded from Android backup
+     * (res/xml/backup_rules.xml, data_extraction_rules.xml) without excluding the other settings.
+     */
+    private const val CREDS_PREFS_NAME = "aircon_remote_creds"
     private const val KEY_BASE_URL = "base_url"
     private const val KEY_USE_MOCK_API = "use_mock_api"
     private const val KEY_SIMPLE_MODE_ENABLED = "simple_mode_enabled"
@@ -33,6 +54,7 @@ object NetworkModule {
     private const val KEY_THEME_MODE = "theme_mode"
 
     private lateinit var sharedPreferences: SharedPreferences
+    private lateinit var credsPreferences: SharedPreferences
     private lateinit var _applicationContext: Context
 
     // Lazy initialization for HttpClient and AirconApiService
@@ -65,18 +87,117 @@ object NetworkModule {
 
     private fun buildAirconApiService(): AirconApiService {
         val useMockApi = sharedPreferences.getBoolean(KEY_USE_MOCK_API, true) // Default to mock
-        val baseUrl = sharedPreferences.getString(KEY_BASE_URL, "http://192.168.1.6") ?: "http://192.168.1.6"
 
-        return if (useMockApi) {
-            MockAirconApiService()
-        } else {
-            AirconApiServiceImpl(httpClient, baseUrl)
-        }
+        if (useMockApi) return MockAirconApiService()
+
+        // Real mode: a local-first service that transparently falls back to the cloud relay when
+        // the adapter is unreachable and remote access is enrolled. Providers read live settings so
+        // a healed IP or a refreshed/cleared credential is picked up without rebuilding the service.
+        return RemoteFallbackApiService(
+            local = { AirconApiServiceImpl(httpClient, Endpoint(getBaseUrl())) },
+            cloud = {
+                remoteCredentials.get()?.let { AirconApiServiceImpl(httpClient, CloudRelay.endpoint(it.id, it.spw)) }
+            },
+            heal = { healConnection() },
+            reEnrol = { enrolRemoteAccess() == EnrolResult.Success },
+            reportMode = { _transportMode.value = it },
+        )
+    }
+
+    // --- Remote cloud access ---
+
+    private val _transportMode = MutableStateFlow(TransportMode.LOCAL)
+
+    /** Whether the aircon is currently being reached locally or over the cloud relay. */
+    val transportMode: StateFlow<TransportMode> = _transportMode
+
+    private val remoteCredentials: RemoteCredentialStore by lazy {
+        RemoteCredentialStore(object : KeyValueStore {
+            override fun getString(key: String): String? = credsPreferences.getString(key, null)
+            override fun putString(key: String, value: String) {
+                credsPreferences.edit().putString(key, value).apply()
+            }
+            override fun remove(key: String) {
+                credsPreferences.edit().remove(key).apply()
+            }
+        })
+    }
+
+    /** True when a cloud credential is stored, i.e. remote access is enrolled. */
+    fun hasRemoteCredential(): Boolean = remoteCredentials.has()
+
+    fun getRemoteId(): String? = remoteCredentials.get()?.id
+
+    fun getRemoteSpw(): String? = remoteCredentials.get()?.spw
+
+    /** Stores the cloud credential directly (enrolment uses this via [RemoteEnroller]). */
+    fun setRemoteCredential(id: String, spw: String) {
+        remoteCredentials.set(RemoteCredential(id, spw))
+        invalidateService()
+    }
+
+    /** Removes the stored credential, disabling cloud fallback. */
+    fun clearRemoteCredential() {
+        remoteCredentials.clear()
+        _transportMode.value = TransportMode.LOCAL
+        invalidateService()
+    }
+
+    /**
+     * Enrols (or refreshes) remote access: reads the adapter's `id`/`pw` over the LAN, derives the
+     * server password `spw` from the relay, and stores the credential. Requires local reachability.
+     * Credentials never touch logs — the network reads swallow their exceptions (which can embed the
+     * URL and `pw`/`spw`) without logging.
+     */
+    suspend fun enrolRemoteAccess(): EnrolResult {
+        val enroller = RemoteEnroller(
+            readBasicInfo = {
+                runCatching {
+                    httpClient.get { url("${getBaseUrl()}${RemoteEnroller.BASIC_INFO_PATH}") }.body<String>()
+                }.getOrNull()
+            },
+            fetchSpw = { id, apw ->
+                runCatching {
+                    val query = "id=${URLEncoder.encode(id, "UTF-8")}&apw=${URLEncoder.encode(apw, "UTF-8")}"
+                    httpClient.get { url("${CloudRelay.HOST}${RemoteEnroller.GET_SPW_PATH}?$query") }.body<String>()
+                }.getOrNull()
+            },
+            store = { remoteCredentials.set(it) },
+        )
+        val result = enroller.enrol()
+        if (result == EnrolResult.Success) invalidateService()
+        return result
+    }
+
+    /**
+     * Enrols from a hand-entered username (`id`) and password (`pw`), deriving the server password
+     * (`spw`) via the relay's `get_spw`. This is a pure cloud call, so it works away from home — no
+     * local network access to the adapter is needed. The entered password is never stored (only the
+     * derived `spw` is) and never logged.
+     */
+    suspend fun enrolRemoteWithCredentials(id: String, pw: String): EnrolResult {
+        val body = runCatching {
+            val query = "id=${URLEncoder.encode(id, "UTF-8")}&apw=${URLEncoder.encode(pw, "UTF-8")}"
+            httpClient.get { url("${CloudRelay.HOST}${RemoteEnroller.GET_SPW_PATH}?$query") }.body<String>()
+        }.getOrNull() ?: return EnrolResult.Rejected
+        val fields = RemoteEnroller.parseKeyValues(body)
+        if (fields["ret"] != "OK") return EnrolResult.Rejected
+        val spw = fields["spw"]?.takeIf { it.isNotBlank() } ?: return EnrolResult.Rejected
+        remoteCredentials.set(RemoteCredential(id, spw))
+        invalidateService()
+        return EnrolResult.Success
+    }
+
+    /** Drops the cached HTTP client / API service so the next access rebuilds them. */
+    private fun invalidateService() {
+        _httpClient = null
+        _airconApiService = null
     }
 
     fun initialize(context: Context) {
         _applicationContext = context.applicationContext
         sharedPreferences = _applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        credsPreferences = _applicationContext.getSharedPreferences(CREDS_PREFS_NAME, Context.MODE_PRIVATE)
     }
 
     fun getBaseUrl(): String {

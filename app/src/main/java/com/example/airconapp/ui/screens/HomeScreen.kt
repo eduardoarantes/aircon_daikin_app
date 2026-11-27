@@ -3,6 +3,7 @@ package com.example.airconapp.ui.screens
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.TextUnit
 import com.example.airconapp.data.ControlInfo
 import com.example.airconapp.data.db.SchedulerProfile
+import com.example.airconapp.data.remote.TransportMode
 import com.example.airconapp.domain.Scene
 import com.example.airconapp.presentation.MainViewModel
 import com.example.airconapp.presentation.SchedulerViewModel
@@ -106,6 +108,7 @@ fun HomeScreen(
     val schedules by schedulerViewModel.allProfiles.collectAsState()
 
     val controlInfo by viewModel.controlInfo.collectAsState()
+    val transportMode by viewModel.transportMode.collectAsState()
     val accent by animateColorAsState(accentFor(controlInfo), tween(200), label = "accent")
     val isOn = controlInfo?.pow == "1"
     // The grey "off" accent is too dark for text; labels use a lighter grey instead
@@ -132,28 +135,52 @@ fun HomeScreen(
             )
         }
     ) { padding ->
-        val modifier = Modifier.padding(padding)
-        when (tab) {
-            HomeTab.Controls -> ControlsScreen(viewModel, accent, onOpenZones = { tab = HomeTab.Zones }, onOpenSettings = onOpenSettings, modifier = modifier)
-            HomeTab.Zones -> ZonesScreen(viewModel, accent, onOpenSchedules = { tab = HomeTab.Schedules }, onOpenSettings = onOpenSettings, modifier = modifier)
-            HomeTab.Scenes -> ScenesScreen(
-                scenes = scenes,
-                onApply = { viewModel.applyScene(it) },
-                onAdd = onAddScene,
-                onEdit = onEditScene,
-                onMoveUp = onMoveSceneUp,
-                modifier = modifier
-            )
-            HomeTab.Schedules -> SchedulesScreen(
-                schedules = schedules,
-                onAdd = onAddSchedule,
-                onEdit = onEditSchedule,
-                onSetActive = { schedule, active -> schedulerViewModel.update(schedule.copy(isActive = active)) },
-                onDelete = { schedulerViewModel.delete(it) },
-                modifier = modifier
-            )
+        Column(modifier = Modifier.padding(padding)) {
+            // Away from home: control is going through Daikin's cloud relay. Writes confirm after
+            // the adapter's next poll, so a change can take up to ~a minute to show.
+            if (transportMode == TransportMode.REMOTE) RemoteModeBanner()
+
+            when (tab) {
+                HomeTab.Controls -> ControlsScreen(viewModel, accent, onOpenZones = { tab = HomeTab.Zones }, onOpenSettings = onOpenSettings)
+                HomeTab.Zones -> ZonesScreen(viewModel, accent, onOpenSchedules = { tab = HomeTab.Schedules }, onOpenSettings = onOpenSettings)
+                HomeTab.Scenes -> ScenesScreen(
+                    scenes = scenes,
+                    onApply = { viewModel.applyScene(it) },
+                    onAdd = onAddScene,
+                    onEdit = onEditScene,
+                    onMoveUp = onMoveSceneUp
+                )
+                HomeTab.Schedules -> SchedulesScreen(
+                    schedules = schedules,
+                    onAdd = onAddSchedule,
+                    onEdit = onEditSchedule,
+                    onSetActive = { schedule, active -> schedulerViewModel.update(schedule.copy(isActive = active)) },
+                    onDelete = { schedulerViewModel.delete(it) }
+                )
+            }
         }
     }
+    }
+}
+
+/** A thin bar shown while control is going through the cloud relay rather than the local adapter. */
+@Composable
+private fun RemoteModeBanner() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(AirconColors.SurfaceAlt)
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "Remote control · changes may take a moment",
+            color = AirconColors.TextSecondary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1
+        )
     }
 }
 

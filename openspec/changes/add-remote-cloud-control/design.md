@@ -32,6 +32,16 @@ See proposal.md — Why. Today `AirconApiServiceImpl(httpClient, baseUrl)` build
 - **Enrolment requires being home at least once** → Remote cannot be set up purely from away. Accepted: matches the official app, which also derives server state while adjacent to the unit.
 - **`device=A` / `port=30050` assumptions** → Correct for this single-unit AirBase; other setups may differ. Accepted given single-unit non-goal; values are centralised so they can be revisited.
 
+## Confidentiality review checklist (task 5.1)
+
+Reviewers of the cloud path confirm each of these:
+
+- [ ] No Ktor `Logging` plugin is installed on the client used for cloud calls (request URLs carry `spw`/`id`).
+- [ ] No `Log.*` / `println` of a request URL or of the `spw`, adapter `pw`, or `id` anywhere on the cloud/enrolment path.
+- [ ] Cloud transport errors are rethrown as a fixed-message `ConnectionException` with no `cause`, so the URL (and the credential in it) cannot reach the UI (`MainViewModel` puts `e.message` into `_error`) or a worker's `Log.e(..., e.message)`.
+- [ ] Enrolment network reads swallow their exceptions (which can embed the URL and `pw`) without logging.
+- [ ] The stored credential never leaves the device. The credential is kept in its own prefs file (`aircon_remote_creds`) excluded from Auto Backup and device-transfer via `res/xml/backup_rules.xml` and `res/xml/data_extraction_rules.xml`; other settings in `aircon_app_prefs` still back up.
+
 ## Open Questions
 
-- Does any cloud write require a parameter the LAN write omits (e.g. full control payload echo)? The official app re-sends full control state on set; our LAN `set_control_info` already sends the core fields. To be confirmed when the write path is tested with the unit off, per the project's safety rule — this does not change the specs or the task breakdown.
+- ~~Does any cloud write require a parameter the LAN write omits?~~ **Resolved (2026-11-27):** a cloud `set_control_info` carrying the same fields as the LAN write (`pow,mode,stemp,f_rate,f_dir,f_airside,f_auto`), sent as a GET with `id,spw,device=A,port=30050`, returned `ret=OK` and was applied by the adapter after ~62 s (the ~60 s poll lag). No extra payload is needed.
