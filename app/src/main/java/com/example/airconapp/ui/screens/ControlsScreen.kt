@@ -41,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -327,7 +328,13 @@ private fun TemperatureSection(
                             fontWeight = FontWeight.Medium,
                             fontSize = 26.sp * k,
                             color = AirconColors.TextSecondary,
-                            modifier = Modifier.padding(top = 12.dp * k, start = 2.dp)
+                            // Zero layout width: the number alone is centred, the unit hangs off its right edge
+                            modifier = Modifier
+                                .layout { measurable, constraints ->
+                                    val placeable = measurable.measure(constraints.copy(minWidth = 0))
+                                    layout(0, placeable.height) { placeable.place(0, 0) }
+                                }
+                                .padding(top = 12.dp * k, start = 2.dp)
                         )
                     }
                 }
