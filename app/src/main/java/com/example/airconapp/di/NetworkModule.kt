@@ -1,5 +1,7 @@
 package com.example.airconapp.di
 
+import android.net.ConnectivityManager
+import com.example.airconapp.data.remote.isCellularOnly
 import android.content.Context
 import android.content.SharedPreferences
 import com.example.airconapp.data.AirconApiService
@@ -107,8 +109,14 @@ object NetworkModule {
             heal = { healConnection() },
             reEnrol = { enrolRemoteAccess() == EnrolResult.Success },
             reportMode = { _transportMode.value = it },
+            preferCloud = { isOnCellularOnlyNetwork() },
         )
     }
+
+    private fun isOnCellularOnlyNetwork(): Boolean = runCatching {
+        val connectivity = _applicationContext.getSystemService(ConnectivityManager::class.java)
+        isCellularOnly(connectivity?.getNetworkCapabilities(connectivity.activeNetwork))
+    }.getOrDefault(false)
 
     // --- Remote cloud access ---
 
@@ -300,7 +308,7 @@ object NetworkModule {
      * real mode. Returns true if a unit was found and applied.
      */
     suspend fun autoConfigureIfNeeded(): Boolean {
-        if (sharedPreferences.contains(KEY_BASE_URL)) return false
+        if (sharedPreferences.contains(KEY_BASE_URL) || isOnCellularOnlyNetwork()) return false
         return discoverAndApply(force = true)
     }
 
