@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.airconapp.di.NetworkModule
 import com.example.airconapp.data.discovery.DaikinDiscovery
+import com.example.airconapp.data.remote.EnrolResult
 import com.example.airconapp.domain.SimpleModeLogic
 import com.example.airconapp.wallpanel.WallPanel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -82,6 +83,97 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 _useMockMode.value = false
                 _discoveryStatus.value = "Found ${unit.name ?: "aircon"} at ${unit.ip}"
             }
+        }
+    }
+
+    // --- Remote (cloud) access ---
+
+    private val _remoteEnrolled = MutableStateFlow(NetworkModule.hasRemoteCredential())
+    /** True when a cloud credential is stored, so control works away from the home network. */
+    val remoteEnrolled: StateFlow<Boolean> = _remoteEnrolled.asStateFlow()
+
+    private val _remoteStatus = MutableStateFlow<String?>(null)
+    /** Progress/result of the last enrol attempt, shown under the remote-access controls. */
+    val remoteStatus: StateFlow<String?> = _remoteStatus.asStateFlow()
+
+    private val _remoteBusy = MutableStateFlow(false)
+    val remoteBusy: StateFlow<Boolean> = _remoteBusy.asStateFlow()
+
+    /**
+     * Enrols remote access: derives the cloud credential from the adapter over the LAN. Must be run
+     * while connected to the home network.
+     */
+    fun enableRemoteAccess() {
+        if (_remoteBusy.value) return
+        viewModelScope.launch {
+            _remoteBusy.value = true
+            _remoteStatus.value = "Setting up remote access…"
+            val result = NetworkModule.enrolRemoteAccess()
+            _remoteStatus.value = when (result) {
+                EnrolResult.Success -> "Remote access is on. You can now control the aircon away from home."
+                EnrolResult.NotOnLocalNetwork ->
+                    "Couldn't reach the aircon. Connect to your home Wi-Fi and try again."
+                EnrolResult.Rejected -> "The aircon didn't accept remote access. Please try again."
+            }
+            _remoteEnrolled.value = NetworkModule.hasRemoteCredential()
+            _remoteBusy.value = false
+        }
+    }
+
+    /** Clears the stored credential, disabling cloud fallback. */
+    fun clearRemoteAccess() {
+        NetworkModule.clearRemoteCredential()
+        _remoteEnrolled.value = false
+        _remoteStatus.value = "Remote access is off."
+    }
+
+    // Manual credential entry (advanced): set up remote access with a username + password,
+    // without being on the home network. The server password (spw) is derived via the cloud.
+    private val _manualUsername = MutableStateFlow("")
+    val manualUsername: StateFlow<String> = _manualUsername.asStateFlow()
+
+    private val _manualPassword = MutableStateFlow("")
+    val manualPassword: StateFlow<String> = _manualPassword.asStateFlow()
+
+    /** Whether the manual username/password fields are shown. */
+    private val _manualEntryVisible = MutableStateFlow(false)
+    val manualEntryVisible: StateFlow<Boolean> = _manualEntryVisible.asStateFlow()
+
+    fun toggleManualEntry() { _manualEntryVisible.value = !_manualEntryVisible.value }
+
+    fun setManualUsername(value: String) { _manualUsername.value = value }
+
+    fun setManualPassword(value: String) { _manualPassword.value = value }
+
+    /**
+     * Enrols from a hand-entered username + password, deriving the server password (`spw`) via the
+     * cloud (`get_spw`). Unlike automatic enrolment this needs no local network, so it works away
+     * from home — only the login is required.
+     */
+    fun saveManualRemoteCredential() {
+        if (_remoteBusy.value) return
+        val username = _manualUsername.value.trim()
+        val password = _manualPassword.value.trim()
+        if (username.isBlank() || password.isBlank()) {
+            _remoteStatus.value = "Enter both your username and password."
+            return
+        }
+        viewModelScope.launch {
+            _remoteBusy.value = true
+            _remoteStatus.value = "Checking your details…"
+            val result = NetworkModule.enrolRemoteWithCredentials(username, password)
+            _remoteStatus.value = when (result) {
+                EnrolResult.Success -> {
+                    // Clear the fields and collapse the form; the status line is the confirmation.
+                    _manualUsername.value = ""
+                    _manualPassword.value = ""
+                    _manualEntryVisible.value = false
+                    "Remote access is on — you can now control the aircon from anywhere."
+                }
+                else -> "Couldn't verify those details. Check your username and password."
+            }
+            _remoteEnrolled.value = NetworkModule.hasRemoteCredential()
+            _remoteBusy.value = false
         }
     }
 

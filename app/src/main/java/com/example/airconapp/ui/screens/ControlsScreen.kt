@@ -239,10 +239,12 @@ private fun TemperatureSection(
     val isOn = info.pow == "1"
     val mode = AirconMode.of(info.mode)
     val isFan = mode == AirconMode.FAN
+    // Fan and Dry have no user-settable target temperature, so they hide the value and the dial
+    val templess = mode?.hasSetpoint == false
     val setTemp = info.stemp.toFloatOrNull()?.roundToInt()?.coerceIn(MIN_TEMP, MAX_TEMP)
     // The temperature can be set with the unit off too (it applies when it's turned on);
-    // only Fan mode has none
-    val canChange = enabled && !isFan && setTemp != null
+    // Fan and Dry have none
+    val canChange = enabled && !templess && setTemp != null
     val step = { delta: Int -> setTemp?.let { onSetTemperature((it + delta).coerceIn(MIN_TEMP, MAX_TEMP)) } }
 
     // While dragging, the ring follows the finger; the command goes out on release
@@ -250,7 +252,7 @@ private fun TemperatureSection(
     val shownTemp = dragTemp ?: setTemp
 
     val target = when {
-        isFan -> if (isOn) 1f else 0f
+        templess -> if (isOn) 1f else 0f
         shownTemp == null -> 0f
         else -> (shownTemp - MIN_TEMP).toFloat() / (MAX_TEMP - MIN_TEMP)
     }
@@ -265,7 +267,7 @@ private fun TemperatureSection(
             accent = accent,
             fraction = fraction,
             glow = isOn,
-            showHandle = !isFan,
+            showHandle = !templess,
             stepsEnabled = canChange,
             onDecrease = { step(-1) },
             onIncrease = { step(1) },
@@ -279,12 +281,12 @@ private fun TemperatureSection(
             onDragCancel = { dragTemp = null }
         ) {
             when {
-                !isOn && isFan -> {
+                !isOn && templess -> {
                     Text("Off", fontFamily = SpaceGrotesk, fontWeight = FontWeight.Medium, fontSize = 56.sp * k, color = AirconColors.OffText)
                     Text("Tap power to start", fontSize = 13.sp, color = AirconColors.TextMuted)
                 }
-                isFan -> {
-                    CapsLabel("Fan only", accent)
+                templess -> {
+                    CapsLabel(if (isFan) "Fan only" else "Dry", accent)
                     Text(
                         FanSpeed.current(info)?.label ?: "—",
                         fontFamily = SpaceGrotesk,
