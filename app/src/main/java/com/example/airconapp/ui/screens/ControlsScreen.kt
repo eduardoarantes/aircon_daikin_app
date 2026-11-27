@@ -1,5 +1,7 @@
 package com.example.airconapp.ui.screens
 
+import com.example.airconapp.data.remote.TransportMode
+
 import com.example.airconapp.domain.TemperatureUnit
 import com.example.airconapp.domain.displayTemp
 import com.example.airconapp.domain.label
@@ -86,6 +88,7 @@ fun ControlsScreen(
     val zones by viewModel.zoneStatus.collectAsState()
     val sensorInfo by viewModel.sensorInfo.collectAsState()
     val isConnected by viewModel.isConnected.collectAsState()
+    val transportMode by viewModel.transportMode.collectAsState()
     val mostUsed by viewModel.mostUsedZones.collectAsState()
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
@@ -104,7 +107,7 @@ fun ControlsScreen(
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Aircon", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = AirconColors.TextPrimary)
-                ConnectionStatus(isConnected)
+                ConnectionStatus(isConnected, transportMode)
             }
             val info = controlInfo
             if (info != null) {
@@ -187,7 +190,7 @@ fun LoadingOrUnreachable(isConnected: Boolean?, onOpenSettings: () -> Unit) {
 }
 
 @Composable
-fun ConnectionStatus(isConnected: Boolean?) {
+fun ConnectionStatus(isConnected: Boolean?, transportMode: TransportMode) {
     val (dot, label) = when (isConnected) {
         true -> AirconColors.Connected to "Connected"
         false -> AirconColors.PowerOff to "Disconnected"
@@ -195,7 +198,8 @@ fun ConnectionStatus(isConnected: Boolean?) {
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.size(8.dp).background(dot, CircleShape))
-        Text("Daikin · $label", fontSize = 13.sp, color = AirconColors.TextMuted)
+        val remote = if (isConnected == true && transportMode == TransportMode.REMOTE) " · Remote" else ""
+        Text("Daikin · $label$remote", fontSize = 13.sp, color = AirconColors.TextMuted)
     }
 }
 
