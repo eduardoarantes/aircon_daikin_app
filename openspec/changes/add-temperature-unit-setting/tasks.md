@@ -35,3 +35,15 @@
 - Local Android emulator, mock API: verified live unit changes, Fahrenheit persistence after process restart, Controls setpoint/room readings, one-Celsius stepping, both lists and editors, Settings start temperature, and Simple mode Set/Room cards in both units.
 - Saved a scene and schedule at 72 Fahrenheit; both reloaded as 22 Celsius after changing units. Inspected scene JSON and the Room schedule record to confirm stored values remain 22 Celsius. Settings start-temperature stepping from 70 to 72 Fahrenheit likewise persisted 22 Celsius.
 - Emulator preferences and databases were backed up before verification and restored byte-for-byte afterward. No physical-device or real-adapter tests were performed.
+
+## 5. Save/discard follow-up
+
+- [x] 5.1 Stage temperature unit and theme with the existing settings fields; track edits, support discard and preserve zone validation on save.
+- [x] 5.2 Prompt with Save or Discard from both toolbar and Android Back; dismissing continues editing and unchanged/reverted settings exit directly.
+- [x] 5.3 Verify save/discard/revert behavior, restart persistence, and both back paths; run unit tests, build, and strict OpenSpec validation.
+
+### Follow-up verification
+
+- `./gradlew testDebugUnitTest assembleDebug`: passed, 66 tests. Regression coverage includes temperature/theme drafts, all saved settings fields, reverting/discarding, save persistence, and invalid Simple mode zone selection.
+- Emulator with mock API: confirmed unsaved temperature choices do not change stored preferences; toolbar Back and Android Back both prompt; dismiss keeps editing; Discard leaves saved Celsius unchanged; Save commits Fahrenheit and updates Controls; unchanged/reverted settings exit directly; theme edits prompt and can be discarded; saved Fahrenheit survives process restart.
+- Restored emulator preferences and databases byte-for-byte after verification. This follow-up supersedes the original immediate-persistence behavior: unit and theme changes now take effect when saved.

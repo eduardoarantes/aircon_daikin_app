@@ -44,7 +44,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.ui.platform.LocalContext
 import com.example.airconapp.domain.SimpleModeLogic
 import com.example.airconapp.domain.ThemeMode
-import com.example.airconapp.ui.theme.ThemeSetting
+import androidx.activity.compose.BackHandler
+import androidx.compose.material3.AlertDialog
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -54,6 +56,7 @@ import com.example.airconapp.wallpanel.WallPanel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onSettingsSaved: () -> Unit) {
+    val themeMode by viewModel.themeMode.collectAsState()
     val temperatureUnit by viewModel.temperatureUnit.collectAsState()
     val apiIp by viewModel.apiIp.collectAsState()
     val useMockMode by viewModel.useMockMode.collectAsState()
@@ -71,12 +74,46 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
     val manualUsername by viewModel.manualUsername.collectAsState()
     val manualPassword by viewModel.manualPassword.collectAsState()
 
+    var showUnsavedChanges by rememberSaveable { mutableStateOf(false) }
+    val requestBack = {
+        if (viewModel.hasUnsavedChanges) showUnsavedChanges = true else onNavigateBack()
+    }
+    BackHandler(onBack = requestBack)
+
+    if (showUnsavedChanges) {
+        AlertDialog(
+            onDismissRequest = { showUnsavedChanges = false },
+            title = { Text("Save changes?") },
+            text = {
+                Text(if (viewModel.canSaveSettings) "You have unsaved settings changes. Save them before leaving?"
+                    else "You have unsaved settings changes. Choose a zone before saving Simple mode, or discard your changes.")
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = viewModel.canSaveSettings,
+                    onClick = {
+                        viewModel.saveSettings()
+                        showUnsavedChanges = false
+                        onSettingsSaved()
+                    }
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    viewModel.discardChanges()
+                    showUnsavedChanges = false
+                    onNavigateBack()
+                }) { Text("Discard") }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Settings") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = requestBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -96,7 +133,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            ThemeChooser()
+            ThemeChooser(themeMode, viewModel::setThemeMode)
             Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Temperature unit", style = MaterialTheme.typography.titleMedium)
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -352,7 +389,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
-                enabled = !simpleModeEnabled || simpleModeZone != null,
+                enabled = viewModel.canSaveSettings,
                 onClick = {
                     viewModel.saveSettings()
                     onSettingsSaved()
@@ -364,18 +401,17 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
         }
     }
 }
-/** System / Light / Dark. Applies at once (no Save needed), so the choice can be previewed. */
+/** Theme is a draft until Save, consistent with the other settings. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ThemeChooser() {
-    val context = LocalContext.current
+private fun ThemeChooser(selectedMode: ThemeMode, onSelect: (ThemeMode) -> Unit) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Theme", style = MaterialTheme.typography.titleMedium)
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             ThemeMode.entries.forEachIndexed { index, mode ->
                 SegmentedButton(
-                    selected = ThemeSetting.mode == mode,
-                    onClick = { ThemeSetting.set(context, mode) },
+                    selected = selectedMode == mode,
+                    onClick = { onSelect(mode) },
                     shape = SegmentedButtonDefaults.itemShape(index, ThemeMode.entries.size),
                     icon = {}
                 ) {

@@ -32,3 +32,9 @@ See proposal.md — Why. Temperature is Celsius everywhere: setpoints are `Int` 
 - [Fahrenheit steps look uneven] → Stepping by 1 °C shows as 1–2 °F jumps and some odd °F values never appear. Accepted per product decision (display-only, no rounding back); the alternative drifts or sticks. Not surfaced in UI beyond the values themselves.
 - [Missed display site] → A hard-coded `°C` left somewhere shows the wrong unit. Mitigation: the grep of temperature sites in tasks enumerates every site; a task verifies no `°C`/`°F` string literal remains outside the helper.
 - [Sensor value formatting] → Indoor/outdoor are strings and may be non-integer; the string helper must not crash on `"-"` or empty. Covered by the helper's tests.
+
+## Save and discard settings
+
+SettingsViewModel holds draft values for the temperature unit, theme, and existing Save Settings fields. The unit remains reactive within Settings; saving publishes it to the shared NetworkModule state for other screens. Theme also applies on Save. Dirty detection compares draft values with the saved preferences, so reverting an edit clears the pending state. Both back paths open the same confirmation dialog. Save uses the existing save/navigation callback; Discard resets drafts and returns; dismissal continues editing. The existing zone requirement applies equally to the dialog and Save Settings button.
+
+Explicit remote-access and kiosk actions keep their existing commit behavior. The Home App button still saves settings before opening Android settings.

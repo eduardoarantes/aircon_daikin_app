@@ -7,7 +7,7 @@ The app shows every temperature in Celsius with a hard-coded `°C` label. Users 
 ## What Changes
 
 - Add a **temperature unit preference** (Celsius or Fahrenheit, default Celsius) stored in SharedPreferences, following the existing `ThemeMode` pattern in `NetworkModule`.
-- Add a **Temperature unit** control to the Settings screen to change it.
+- Add a **Temperature unit** control to the Settings screen to change it. Draft settings (including theme and temperature unit) are committed with Save; leaving with edits prompts to Save or Discard.
 - Add a **pure conversion helper** (`°C Int` → displayed number + unit label, and sensor-string → displayed) that is unit-tested.
 - Make **every temperature display honour the setting**: Controls (dial setpoint, indoor reading, unit label), Schedules list, Scenes list, the Scene and Schedule editors' `TemperatureCard`, Simple mode's Set/Room cards, and the Settings simple-mode start temperature.
 - Keep **stepping in whole °C**: the +/- buttons and dial move by 1 °C as today; in Fahrenheit the shown value therefore jumps by 1–2 °F per tap (the exact jump varies with rounding). No sub-degree storage, no rounding back to the adapter.
