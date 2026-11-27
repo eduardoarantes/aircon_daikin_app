@@ -160,10 +160,9 @@ class AirconApiServiceImpl(private val client: HttpClient, private val endpoint:
 
     // Helper function to parse control info string
     private fun parseControlInfoString(input: String): ControlInfo {
-        val parts = input.split(",").associate { part ->
-            val (key, value) = part.split("=")
-            key to value
-        }
+        // parseKeyValues tolerates segments without '=' (e.g. a malformed relay body); a raw
+        // destructure would throw and bypass the clean connection-failure handling.
+        val parts = parseKeyValues(input)
         return ControlInfo(
             ret = parts["ret"],
             pow = parts["pow"] ?: "",
@@ -178,10 +177,7 @@ class AirconApiServiceImpl(private val client: HttpClient, private val endpoint:
 
     // Helper function to parse zone status string into a list of Zone objects
     private fun parseZoneStatusString(input: String): ZoneStatusResponse {
-        val parts = input.split(",").associate { part ->
-            val (key, value) = part.split("=")
-            key to value
-        }
+        val parts = parseKeyValues(input)
 
         val encodedZoneOnOffString = parts["zone_onoff"] ?: ""
         val encodedZoneNameString = parts["zone_name"] ?: ""

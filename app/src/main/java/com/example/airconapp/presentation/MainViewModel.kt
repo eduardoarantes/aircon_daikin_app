@@ -187,12 +187,8 @@ class MainViewModel : ViewModel() { // Removed airconApiService from constructor
                         _messages.trySend(e.message ?: "Remote access needs re-enrolling from your home network")
                     }
                 }
-                // The aircon may have moved to a new IP: rediscover it and retry before
-                // bothering the user
-                if (NetworkModule.healConnection()) {
-                    fetchAirconStatus()
-                    return@launch
-                }
+                // A moved adapter is already rediscovered inside the API service's fallback boundary
+                // (RemoteFallbackApiService heals before surfacing an error), so don't heal again here.
                 // Keep searching (the regular poll retries) before telling the user; then say so
                 // once per outage, not on every poll
                 failedAttempts++

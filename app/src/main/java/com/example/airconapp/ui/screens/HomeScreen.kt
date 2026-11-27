@@ -140,22 +140,27 @@ fun HomeScreen(
             // the adapter's next poll, so a change can take up to ~a minute to show.
             if (transportMode == TransportMode.REMOTE) RemoteModeBanner()
 
+            // weight(1f): the tab fills the height left after the (optional) banner, so its
+            // scrollable content isn't clipped behind the bottom nav in remote mode.
+            val tabModifier = Modifier.weight(1f)
             when (tab) {
-                HomeTab.Controls -> ControlsScreen(viewModel, accent, onOpenZones = { tab = HomeTab.Zones }, onOpenSettings = onOpenSettings)
-                HomeTab.Zones -> ZonesScreen(viewModel, accent, onOpenSchedules = { tab = HomeTab.Schedules }, onOpenSettings = onOpenSettings)
+                HomeTab.Controls -> ControlsScreen(viewModel, accent, onOpenZones = { tab = HomeTab.Zones }, onOpenSettings = onOpenSettings, modifier = tabModifier)
+                HomeTab.Zones -> ZonesScreen(viewModel, accent, onOpenSchedules = { tab = HomeTab.Schedules }, onOpenSettings = onOpenSettings, modifier = tabModifier)
                 HomeTab.Scenes -> ScenesScreen(
                     scenes = scenes,
                     onApply = { viewModel.applyScene(it) },
                     onAdd = onAddScene,
                     onEdit = onEditScene,
-                    onMoveUp = onMoveSceneUp
+                    onMoveUp = onMoveSceneUp,
+                    modifier = tabModifier
                 )
                 HomeTab.Schedules -> SchedulesScreen(
                     schedules = schedules,
                     onAdd = onAddSchedule,
                     onEdit = onEditSchedule,
                     onSetActive = { schedule, active -> schedulerViewModel.update(schedule.copy(isActive = active)) },
-                    onDelete = { schedulerViewModel.delete(it) }
+                    onDelete = { schedulerViewModel.delete(it) },
+                    modifier = tabModifier
                 )
             }
         }

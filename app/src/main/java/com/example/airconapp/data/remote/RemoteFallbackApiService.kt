@@ -52,19 +52,27 @@ class RemoteFallbackApiService(
         }
 
         // 3. Fall back to the cloud relay if remote access is enrolled.
-        val cloudApi = cloud()
-            ?: throw ConnectionException("Could not connect to aircon") // no credential: surface local error unchanged
+        try {
+            val cloudApi = cloud()
+                ?: throw ConnectionException("Could not connect to aircon") // no credential: surface local error unchanged
 
-        return try {
-            op(cloudApi).also { reportMode(TransportMode.REMOTE) }
-        } catch (e: RemoteCredentialException) {
-            // Stale `spw`. If we can reach home, refresh it and retry once; otherwise do not loop.
-            if (reEnrol()) {
-                val refreshed = cloud() ?: throw e
-                op(refreshed).also { reportMode(TransportMode.REMOTE) }
-            } else {
-                throw e
+            return try {
+                op(cloudApi).also { reportMode(TransportMode.REMOTE) }
+            } catch (e: RemoteCredentialException) {
+                // Stale `spw`. If we can reach home, refresh it and retry once; otherwise do not loop.
+                if (reEnrol()) {
+                    val refreshed = cloud() ?: throw e
+                    op(refreshed).also { reportMode(TransportMode.REMOTE) }
+                } else {
+                    throw e
+                }
             }
+        } catch (e: ConnectionException) {
+            // Neither the local adapter nor the cloud relay could be reached: we are not operating
+            // remotely, so clear the remote indicator instead of leaving it stuck on from an earlier
+            // successful cloud call. (A reachable relay that merely rejects a request keeps REMOTE.)
+            reportMode(TransportMode.LOCAL)
+            throw e
         }
     }
 

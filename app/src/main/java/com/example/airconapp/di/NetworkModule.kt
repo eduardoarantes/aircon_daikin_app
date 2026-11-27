@@ -190,6 +190,9 @@ object NetworkModule {
 
     /** Drops the cached HTTP client / API service so the next access rebuilds them. */
     private fun invalidateService() {
+        // Close the old CIO client so its engine threads/sockets are released rather than leaked
+        // when a new one is built (enrol, clear, heal, or a settings change).
+        runCatching { _httpClient?.close() }
         _httpClient = null
         _airconApiService = null
     }
@@ -207,8 +210,7 @@ object NetworkModule {
     fun setBaseUrl(url: String) {
         sharedPreferences.edit().putString(KEY_BASE_URL, url).apply()
         // Invalidate cached service instances so they are rebuilt with new settings
-        _httpClient = null
-        _airconApiService = null
+        invalidateService()
     }
 
     fun getUseMockApi(): Boolean {
@@ -218,8 +220,7 @@ object NetworkModule {
     fun setUseMockApi(useMock: Boolean) {
         sharedPreferences.edit().putBoolean(KEY_USE_MOCK_API, useMock).apply()
         // Invalidate cached service instances
-        _httpClient = null
-        _airconApiService = null
+        invalidateService()
     }
 
     fun getSimpleModeEnabled(): Boolean =
@@ -310,8 +311,7 @@ object NetworkModule {
                 .putString(KEY_BASE_URL, url)
                 .putBoolean(KEY_USE_MOCK_API, false)
                 .apply()
-            _httpClient = null
-            _airconApiService = null
+            invalidateService()
         }
         changed
     }
