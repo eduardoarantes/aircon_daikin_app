@@ -293,6 +293,8 @@ object NetworkModule {
             return true
         }
         if (!writeLocal(AdapterCommands.setTimeSyncDisabled(disabled))) return false
+        // Best effort: with internet sync on, the adapter answers ret=THROUGH (it ignores the
+        // pushed time and keeps its own synced clock), so the reply isn't treated as a failure
         writeLocal(AdapterCommands.notifyDateTime(disabled, java.time.ZonedDateTime.now()))
         return true
     }
