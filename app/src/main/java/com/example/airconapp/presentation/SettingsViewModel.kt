@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.airconapp.di.NetworkModule
+import com.example.airconapp.data.AdapterInfo
+import com.example.airconapp.data.ConnectionTestResult
 import com.example.airconapp.data.discovery.DaikinDiscovery
 import com.example.airconapp.data.remote.EnrolResult
 import com.example.airconapp.domain.ThemeMode
@@ -191,6 +193,44 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             }
             _remoteEnrolled.value = NetworkModule.hasRemoteCredential()
             _remoteBusy.value = false
+        }
+    }
+
+    // --- Adapter details (read-only) ---
+
+    /** What the Adapter page shows: loading, the adapter's details, or that it couldn't be reached. */
+    sealed interface AdapterState {
+        object Loading : AdapterState
+        data class Loaded(val info: AdapterInfo) : AdapterState
+        object Unreachable : AdapterState
+    }
+
+    private val _adapterState = MutableStateFlow<AdapterState>(AdapterState.Loading)
+    val adapterState: StateFlow<AdapterState> = _adapterState.asStateFlow()
+
+    /** Re-read each time the Adapter page opens, so the clock and settings are current. */
+    fun loadAdapterInfo() {
+        viewModelScope.launch {
+            _adapterState.value = AdapterState.Loading
+            _adapterState.value = NetworkModule.readAdapterInfo()
+                ?.let { AdapterState.Loaded(it) } ?: AdapterState.Unreachable
+        }
+    }
+
+    /** Null until a test runs; [connectionTesting] is true while one is in progress. */
+    private val _connectionTest = MutableStateFlow<ConnectionTestResult?>(null)
+    val connectionTest: StateFlow<ConnectionTestResult?> = _connectionTest.asStateFlow()
+
+    private val _connectionTesting = MutableStateFlow(false)
+    val connectionTesting: StateFlow<Boolean> = _connectionTesting.asStateFlow()
+
+    fun runConnectionTest() {
+        if (_connectionTesting.value) return
+        viewModelScope.launch {
+            _connectionTesting.value = true
+            _connectionTest.value = null
+            _connectionTest.value = NetworkModule.testConnection()
+            _connectionTesting.value = false
         }
     }
 

@@ -4,7 +4,10 @@ import android.net.ConnectivityManager
 import com.example.airconapp.data.remote.isCellularOnly
 import android.content.Context
 import android.content.SharedPreferences
+import com.example.airconapp.data.AdapterInfo
+import com.example.airconapp.data.AdapterInfoParser
 import com.example.airconapp.data.AirconApiService
+import com.example.airconapp.data.ConnectionTestResult
 import com.example.airconapp.data.AirconApiServiceImpl
 import com.example.airconapp.data.CloudRelay
 import com.example.airconapp.data.Endpoint
@@ -206,6 +209,53 @@ object NetworkModule {
         invalidateService()
         return EnrolResult.Success
     }
+
+    // --- Adapter details (read-only) ---
+
+    /** One LAN read under `/skyfi/common/`; null when the adapter can't be reached. Never logged. */
+    private suspend fun readLocal(path: String): String? =
+        runCatching { httpClient.get { url("${getBaseUrl()}$path") }.body<String>() }.getOrNull()
+
+    /**
+     * Reads the adapter's details over the home network. Null when the adapter can't be reached
+     * (these reads aren't available through the cloud relay). Mock mode returns sample values.
+     */
+    suspend fun readAdapterInfo(): AdapterInfo? {
+        if (getUseMockApi()) return MOCK_ADAPTER_INFO
+        val basic = readLocal(AdapterInfoParser.BASIC_INFO_PATH)
+        if (!AdapterInfoParser.isOk(basic)) return null
+        return AdapterInfoParser.parse(
+            basic,
+            readLocal(AdapterInfoParser.DATETIME_PATH),
+            readLocal(AdapterInfoParser.REMOTE_METHOD_PATH),
+        )
+    }
+
+    /**
+     * Checks both ways of reaching the aircon: directly over the home network, and through Daikin's
+     * cloud when remote access is set up. Read-only; nothing on the unit changes.
+     */
+    suspend fun testConnection(): ConnectionTestResult {
+        if (getUseMockApi()) return ConnectionTestResult(local = true, remote = hasRemoteCredential())
+        val local = AdapterInfoParser.isOk(readLocal(AdapterInfoParser.BASIC_INFO_PATH))
+        val remote = remoteCredentials.get()?.let { credential ->
+            runCatching {
+                AirconApiServiceImpl(httpClient, CloudRelay.endpoint(credential.id, credential.spw))
+                    .getControlInfo().pow.isNotBlank()
+            }.getOrDefault(false)
+        }
+        return ConnectionTestResult(local, remote)
+    }
+
+    private val MOCK_ADAPTER_INFO = AdapterInfo(
+        firmware = "1.3.0",
+        macAddress = "00:00:00:00:00:00",
+        outOfHome = true,
+        dateTime = java.time.LocalDateTime.of(2026, 1, 1, 12, 0, 0),
+        timeZone = "Sydney",
+        automaticDst = true,
+        timeSyncDisabled = false,
+    )
 
     /** Drops the cached HTTP client / API service so the next access rebuilds them. */
     private fun invalidateService() {
