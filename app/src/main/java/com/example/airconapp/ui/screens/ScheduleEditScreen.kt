@@ -1,5 +1,8 @@
 package com.example.airconapp.ui.screens
 
+import com.example.airconapp.domain.TemperatureUnit
+import com.example.airconapp.domain.displayTemp
+import com.example.airconapp.domain.label
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -83,6 +86,7 @@ fun ScheduleEditScreen(
     schedule: SchedulerProfile?,
     current: ControlInfo?,
     deviceZones: List<Zone>,
+    temperatureUnit: TemperatureUnit,
     onSave: (SchedulerProfile) -> Unit,
     onDelete: (SchedulerProfile) -> Unit,
     onClose: () -> Unit
@@ -171,6 +175,7 @@ fun ScheduleEditScreen(
 
                 TemperatureCard(
                     temperature = temperature,
+                    temperatureUnit = temperatureUnit,
                     accent = accent,
                     enabled = mode.hasSetpoint,
                     onChange = { temperature = it.coerceIn(TEMP_RANGE) }
@@ -322,7 +327,7 @@ internal fun FormCard(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-internal fun TemperatureCard(temperature: Int, accent: Color, enabled: Boolean, onChange: (Int) -> Unit) {
+internal fun TemperatureCard(temperatureUnit: TemperatureUnit, temperature: Int, accent: Color, enabled: Boolean, onChange: (Int) -> Unit) {
     val shape = RoundedCornerShape(20.dp)
     Row(
         modifier = Modifier
@@ -335,7 +340,7 @@ internal fun TemperatureCard(temperature: Int, accent: Color, enabled: Boolean, 
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text("Temperature", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             Text(
-                if (enabled) "${TEMP_RANGE.first}–${TEMP_RANGE.last}°C" else "Not used in this mode",
+                if (enabled) "${displayTemp(TEMP_RANGE.first, temperatureUnit)}–${displayTemp(TEMP_RANGE.last, temperatureUnit)}${label(temperatureUnit)}" else "Not used in this mode",
                 fontSize = 12.sp,
                 color = AirconColors.TextMuted
             )
@@ -347,7 +352,7 @@ internal fun TemperatureCard(temperature: Int, accent: Color, enabled: Boolean, 
         ) {
             StepperButton(AirconIcons.Minus, "Lower temperature", enabled && temperature > TEMP_RANGE.first) { onChange(temperature - 1) }
             Text(
-                "$temperature°",
+                "${displayTemp(temperature, temperatureUnit)}${label(temperatureUnit)}",
                 fontFamily = SpaceGrotesk,
                 fontWeight = FontWeight.Medium,
                 fontSize = 26.sp,

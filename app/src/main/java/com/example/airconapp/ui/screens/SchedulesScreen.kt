@@ -1,5 +1,8 @@
 package com.example.airconapp.ui.screens
 
+import com.example.airconapp.domain.TemperatureUnit
+import com.example.airconapp.domain.displayTemp
+import com.example.airconapp.domain.label
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -63,6 +66,7 @@ fun SchedulesScreen(
     onEdit: (SchedulerProfile) -> Unit,
     onSetActive: (SchedulerProfile, Boolean) -> Unit,
     onDelete: (SchedulerProfile) -> Unit,
+    temperatureUnit: TemperatureUnit,
     modifier: Modifier = Modifier
 ) {
     var pendingDelete by remember { mutableStateOf<SchedulerProfile?>(null) }
@@ -89,6 +93,7 @@ fun SchedulesScreen(
             items(schedules, key = { it.id }) { schedule ->
                 ScheduleCard(
                     schedule = schedule,
+                    temperatureUnit = temperatureUnit,
                     onEdit = { onEdit(schedule) },
                     onSetActive = { onSetActive(schedule, it) },
                     onDelete = { pendingDelete = schedule }
@@ -119,6 +124,7 @@ private fun summary(schedules: List<SchedulerProfile>): String {
 
 @Composable
 private fun ScheduleCard(
+    temperatureUnit: TemperatureUnit,
     schedule: SchedulerProfile,
     onEdit: () -> Unit,
     onSetActive: (Boolean) -> Unit,
@@ -162,7 +168,7 @@ private fun ScheduleCard(
                     Text(mode?.label ?: "Mode ${info.mode}", color = modeColor, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Chip {
-                    Text(if (mode != null && !mode.hasSetpoint) "—" else "${info.stemp}°C", color = AirconColors.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text(if (mode != null && !mode.hasSetpoint) "—" else displayTemp(info.stemp, temperatureUnit)?.let { "$it${label(temperatureUnit)}" } ?: "—", color = AirconColors.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Chip {
                     Text("Fan ${FanSpeed.ofSchedule(info).shortLabel}", color = AirconColors.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)

@@ -38,6 +38,8 @@ private const val SEND_DELAY_MS = 2_000L
 
 class MainViewModel : ViewModel() { // Removed airconApiService from constructor
 
+    val temperatureUnit = NetworkModule.temperatureUnit
+
     private val _controlInfo = MutableStateFlow<ControlInfo?>(null)
     val controlInfo: StateFlow<ControlInfo?> = _controlInfo
 

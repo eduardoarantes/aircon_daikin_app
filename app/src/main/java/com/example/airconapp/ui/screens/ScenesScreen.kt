@@ -1,5 +1,8 @@
 package com.example.airconapp.ui.screens
 
+import com.example.airconapp.domain.TemperatureUnit
+import com.example.airconapp.domain.displayTemp
+import com.example.airconapp.domain.label
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -51,6 +54,7 @@ fun ScenesScreen(
     onAdd: () -> Unit,
     onEdit: (Scene) -> Unit,
     onMoveUp: (Scene) -> Unit,
+    temperatureUnit: TemperatureUnit,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -76,6 +80,7 @@ fun ScenesScreen(
             itemsIndexed(scenes, key = { _, scene -> scene.id }) { index, scene ->
                 SceneCard(
                     scene = scene,
+                    temperatureUnit = temperatureUnit,
                     inShortcuts = index < SHORTCUTS_SHOWN,
                     canMoveUp = index > 0,
                     onApply = { onApply(scene) },
@@ -104,6 +109,7 @@ fun ScenesScreen(
 
 @Composable
 private fun SceneCard(
+    temperatureUnit: TemperatureUnit,
     scene: Scene,
     inShortcuts: Boolean,
     canMoveUp: Boolean,
@@ -142,7 +148,7 @@ private fun SceneCard(
                 Text(scene.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = AirconColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 val settings = listOfNotNull(
                     mode?.label,
-                    if (mode != null && !mode.hasSetpoint) null else "${scene.temperature}°C",
+                    if (mode != null && !mode.hasSetpoint) null else "${displayTemp(scene.temperature, temperatureUnit)}${label(temperatureUnit)}",
                     "Fan ${scene.fan.shortLabel}"
                 ).joinToString(" · ")
                 Text(settings, fontSize = 13.sp, color = accent, fontWeight = FontWeight.SemiBold)
@@ -197,7 +203,7 @@ private fun EmptyScenes() {
     ) {
         Text("No scenes yet", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = AirconColors.TextPrimary)
         Text(
-            "Tap + to save zones, mode and temperature together, e.g. \"Bedroom · Cool 21°\". " +
+            "Tap + to save zones, mode and temperature together, e.g. \"Bedroom · Cool\". " +
                 "Scenes also appear when you long-press the app icon.",
             fontSize = 13.sp,
             color = AirconColors.TextMuted,

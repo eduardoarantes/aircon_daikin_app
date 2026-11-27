@@ -1,5 +1,8 @@
 package com.example.airconapp.ui.screens
 
+import com.example.airconapp.domain.TemperatureUnit
+import com.example.airconapp.domain.displayTemp
+import com.example.airconapp.domain.label
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -51,6 +54,7 @@ import com.example.airconapp.wallpanel.WallPanel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onSettingsSaved: () -> Unit) {
+    val temperatureUnit by viewModel.temperatureUnit.collectAsState()
     val apiIp by viewModel.apiIp.collectAsState()
     val useMockMode by viewModel.useMockMode.collectAsState()
     val simpleModeEnabled by viewModel.simpleModeEnabled.collectAsState()
@@ -93,6 +97,18 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             ThemeChooser()
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Temperature unit", style = MaterialTheme.typography.titleMedium)
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    TemperatureUnit.entries.forEachIndexed { index, unit ->
+                        SegmentedButton(
+                            selected = temperatureUnit == unit,
+                            onClick = { viewModel.setTemperatureUnit(unit) },
+                            shape = SegmentedButtonDefaults.itemShape(index, TemperatureUnit.entries.size)
+                        ) { Text(label(unit)) }
+                    }
+                }
+            }
 
             HorizontalDivider()
 
@@ -243,7 +259,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
                         modifier = Modifier.size(48.dp)
                     ) { Text("−", style = MaterialTheme.typography.titleLarge) }
                     Text(
-                        "$startTemperature°C",
+                        "${displayTemp(startTemperature, temperatureUnit)}${label(temperatureUnit)}",
                         style = MaterialTheme.typography.titleLarge,
                         modifier = Modifier.padding(horizontal = 12.dp)
                     )

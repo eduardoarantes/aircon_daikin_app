@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.airconapp.di.NetworkModule
 import com.example.airconapp.data.discovery.DaikinDiscovery
 import com.example.airconapp.data.remote.EnrolResult
+import com.example.airconapp.domain.TemperatureUnit
 import com.example.airconapp.domain.SimpleModeLogic
 import com.example.airconapp.wallpanel.WallPanel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +17,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
+
+    val temperatureUnit = NetworkModule.temperatureUnit
+
+    fun setTemperatureUnit(unit: TemperatureUnit) {
+        NetworkModule.setTemperatureUnit(unit)
+    }
 
     private val _apiIp = MutableStateFlow(NetworkModule.getBaseUrl())
     val apiIp: StateFlow<String> = _apiIp.asStateFlow()

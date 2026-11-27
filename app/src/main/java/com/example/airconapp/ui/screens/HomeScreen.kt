@@ -105,6 +105,7 @@ fun HomeScreen(
 ) {
     var tab by rememberSaveable { mutableStateOf(HomeTab.Controls) }
     BackHandler(enabled = tab != HomeTab.Controls) { tab = HomeTab.Controls }
+    val temperatureUnit by viewModel.temperatureUnit.collectAsState()
     val schedules by schedulerViewModel.allProfiles.collectAsState()
 
     val controlInfo by viewModel.controlInfo.collectAsState()
@@ -148,6 +149,7 @@ fun HomeScreen(
                 HomeTab.Zones -> ZonesScreen(viewModel, accent, onOpenSchedules = { tab = HomeTab.Schedules }, onOpenSettings = onOpenSettings, modifier = tabModifier)
                 HomeTab.Scenes -> ScenesScreen(
                     scenes = scenes,
+                    temperatureUnit = temperatureUnit,
                     onApply = { viewModel.applyScene(it) },
                     onAdd = onAddScene,
                     onEdit = onEditScene,
@@ -156,6 +158,7 @@ fun HomeScreen(
                 )
                 HomeTab.Schedules -> SchedulesScreen(
                     schedules = schedules,
+                    temperatureUnit = temperatureUnit,
                     onAdd = onAddSchedule,
                     onEdit = onEditSchedule,
                     onSetActive = { schedule, active -> schedulerViewModel.update(schedule.copy(isActive = active)) },

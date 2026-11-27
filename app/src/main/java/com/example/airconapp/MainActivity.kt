@@ -99,6 +99,7 @@ class MainActivity : ComponentActivity() {
                     androidx.compose.runtime.LaunchedEffect(homePressCount) {
                         if (homePressCount > 0) navController.popBackStack("main_control", inclusive = false)
                     }
+                    val temperatureUnit by mainViewModel.temperatureUnit.collectAsState()
                     NavHost(navController = navController, startDestination = "main_control") {
                         composable("main_control") {
                             val controlInfo by mainViewModel.controlInfo.collectAsState()
@@ -147,6 +148,7 @@ class MainActivity : ComponentActivity() {
                                     sensorInfo = sensorInfo,
                                     zoneName = simpleModeZone,
                                     startTemperature = simpleModeStartTemperature,
+                                    temperatureUnit = temperatureUnit,
                                     error = error,
                                     onToggle = { mainViewModel.toggleSimpleMode() },
                                     // Shown over the lock screen, so Settings needs an unlock first
@@ -194,6 +196,7 @@ class MainActivity : ComponentActivity() {
                             // Wait for the saved schedule before building the form from it
                             if (id < 0 || loaded?.id == id) {
                                 ScheduleEditScreen(
+                                    temperatureUnit = temperatureUnit,
                                     schedule = if (id < 0) null else loaded,
                                     current = currentControl,
                                     deviceZones = currentZones.orEmpty(),
@@ -216,6 +219,7 @@ class MainActivity : ComponentActivity() {
                             val currentZones by mainViewModel.zoneStatus.collectAsState()
                             val currentControl by mainViewModel.controlInfo.collectAsState()
                             SceneEditScreen(
+                                temperatureUnit = temperatureUnit,
                                 scene = scene,
                                 current = currentControl,
                                 deviceZones = currentZones.orEmpty(),

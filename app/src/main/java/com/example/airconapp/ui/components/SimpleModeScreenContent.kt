@@ -1,5 +1,8 @@
 package com.example.airconapp.ui.components
 
+import com.example.airconapp.domain.TemperatureUnit
+import com.example.airconapp.domain.displayTemp
+import com.example.airconapp.domain.label
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -62,6 +65,7 @@ fun SimpleModeScreenContent(
     onToggle: () -> Unit,
     onNavigateToSettings: () -> Unit,
     isDisconnected: Boolean,
+    temperatureUnit: TemperatureUnit = TemperatureUnit.CELSIUS,
     modifier: Modifier = Modifier
 ) {
     // No "switch to mock" dialog here: nobody at a wall panel should answer it. The periodic
@@ -109,8 +113,8 @@ fun SimpleModeScreenContent(
         ) {
             // Aircon off: show the temperature the button will start it at, not the unit's stale one
             val setTemperature = if (controlInfo?.pow == "0") startTemperature.toString() else controlInfo?.stemp
-            TemperatureCard(label = "Set", value = setTemperature, modifier = Modifier.weight(1f))
-            TemperatureCard(label = "Room", value = sensorInfo?.indoorTemp, modifier = Modifier.weight(1f))
+            TemperatureCard(label = "Set", value = setTemperature, temperatureUnit = temperatureUnit, modifier = Modifier.weight(1f))
+            TemperatureCard(label = "Room", value = sensorInfo?.indoorTemp, temperatureUnit = temperatureUnit, modifier = Modifier.weight(1f))
         }
 
         if (isDisconnected) {
@@ -230,14 +234,14 @@ private fun ZonePowerButton(zoneName: String, isOn: Boolean, onToggle: () -> Uni
 }
 
 @Composable
-private fun TemperatureCard(label: String, value: String?, modifier: Modifier = Modifier) {
+private fun TemperatureCard(label: String, value: String?, temperatureUnit: TemperatureUnit, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(label, style = darkStyle(MaterialTheme.typography.titleMedium))
         Text(
-            text = value?.let { "$it°C" } ?: "--",
+            text = displayTemp(value, temperatureUnit)?.let { "$it${label(temperatureUnit)}" } ?: "--",
             style = darkStyle(TextStyle(fontSize = 40.sp, fontWeight = FontWeight.Bold))
         )
     }

@@ -16,6 +16,8 @@ import com.example.airconapp.data.remote.RemoteEnroller
 import com.example.airconapp.data.remote.RemoteFallbackApiService
 import com.example.airconapp.data.remote.TransportMode
 import com.example.airconapp.domain.SimpleModeLogic
+import com.example.airconapp.domain.TemperatureUnit
+import kotlinx.coroutines.flow.asStateFlow
 import com.example.airconapp.domain.ThemeMode
 import com.example.airconapp.data.repo.SchedulerRepository
 import com.example.airconapp.data.repo.SceneRepository
@@ -51,6 +53,10 @@ object NetworkModule {
     private const val KEY_SIMPLE_MODE_START_TEMP = "simple_mode_start_temp"
     private const val KEY_WALL_PANEL_ENABLED = "wall_panel_enabled"
     private const val KEY_ZONE_USAGE = "zone_usage"
+    private const val KEY_TEMP_UNIT = "temperature_unit"
+    private val _temperatureUnit = MutableStateFlow(TemperatureUnit.CELSIUS)
+    val temperatureUnit: StateFlow<TemperatureUnit> = _temperatureUnit.asStateFlow()
+
     private const val KEY_THEME_MODE = "theme_mode"
 
     private lateinit var sharedPreferences: SharedPreferences
@@ -201,6 +207,7 @@ object NetworkModule {
         _applicationContext = context.applicationContext
         sharedPreferences = _applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         credsPreferences = _applicationContext.getSharedPreferences(CREDS_PREFS_NAME, Context.MODE_PRIVATE)
+        _temperatureUnit.value = getTemperatureUnit()
     }
 
     fun getBaseUrl(): String {
@@ -253,6 +260,14 @@ object NetworkModule {
 
     fun setThemeMode(mode: ThemeMode) {
         sharedPreferences.edit().putString(KEY_THEME_MODE, mode.name).apply()
+    }
+
+    fun getTemperatureUnit(): TemperatureUnit =
+        TemperatureUnit.fromName(sharedPreferences.getString(KEY_TEMP_UNIT, null))
+
+    fun setTemperatureUnit(unit: TemperatureUnit) {
+        sharedPreferences.edit().putString(KEY_TEMP_UNIT, unit.name).apply()
+        _temperatureUnit.value = unit
     }
 
     /** True when the app should behave as a wall panel rather than a normal app. */
