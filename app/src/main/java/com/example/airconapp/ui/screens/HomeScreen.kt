@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -128,6 +129,9 @@ fun HomeScreen(
             BottomNav(
                 selected = tab,
                 accent = navAccent,
+                hasActiveSchedule = schedules.any { it.isActive },
+                // The nav turns grey while the aircon is off; keep the dot in colour so it shows
+                dotColor = if (isOn) accent else AirconColors.Cool,
                 onSelect = { tab = it },
                 onOpenSettings = onOpenSettings
             )
@@ -166,6 +170,8 @@ fun HomeScreen(
 private fun BottomNav(
     selected: HomeTab,
     accent: Color,
+    hasActiveSchedule: Boolean,
+    dotColor: Color,
     onSelect: (HomeTab) -> Unit,
     onOpenSettings: () -> Unit
 ) {
@@ -186,8 +192,8 @@ private fun BottomNav(
         NavItem("Controls", AirconIcons.NavControls, selected == HomeTab.Controls, accent, item, labelSize, shrink) { onSelect(HomeTab.Controls) }
         NavItem("Zones", AirconIcons.NavZones, selected == HomeTab.Zones, accent, item, labelSize, shrink) { onSelect(HomeTab.Zones) }
         NavItem("Scenes", AirconIcons.Scene, selected == HomeTab.Scenes, accent, item, labelSize, shrink) { onSelect(HomeTab.Scenes) }
-        NavItem("Schedules", AirconIcons.Calendar, selected == HomeTab.Schedules, accent, item, labelSize, shrink) { onSelect(HomeTab.Schedules) }
-        NavItem("Settings", AirconIcons.Settings, false, accent, item, labelSize, shrink, onOpenSettings)
+        NavItem("Schedules", AirconIcons.Calendar, selected == HomeTab.Schedules, accent, item, labelSize, shrink, dot = dotColor.takeIf { hasActiveSchedule }) { onSelect(HomeTab.Schedules) }
+        NavItem("Settings", AirconIcons.Settings, false, accent, item, labelSize, shrink, onClick = onOpenSettings)
     }
 }
 
@@ -200,6 +206,8 @@ private fun NavItem(
     modifier: Modifier,
     labelSize: TextUnit,
     onLabelTooWide: () -> Unit,
+    /** Colour of a small dot on the icon's top-right corner (e.g. "a schedule is active"); null for none. */
+    dot: Color? = null,
     onClick: () -> Unit
 ) {
     val color = if (isSelected) accent else AirconColors.TextMuted
@@ -210,7 +218,23 @@ private fun NavItem(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(22.dp))
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier
+                .size(22.dp)
+                .drawWithContent {
+                    drawContent()
+                    if (dot != null) {
+                        val r = 3.5.dp.toPx()
+                        val c = Offset(size.width - r * 0.5f, r * 0.5f)
+                        // A background-coloured ring keeps the dot clear of the icon's outline
+                        drawCircle(AirconColors.Background, radius = r + 1.5.dp.toPx(), center = c)
+                        drawCircle(dot, radius = r, center = c)
+                    }
+                }
+        )
         Text(
             label,
             color = color,
