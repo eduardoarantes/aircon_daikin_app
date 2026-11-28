@@ -64,6 +64,8 @@ class MainActivity : ComponentActivity() {
         WallPanel.setHomeAppEnabled(this, NetworkModule.isWallPanelActive())
         // Keep the app icon's long-press menu in step with the saved scenes
         NetworkModule.sceneRepository.refreshShortcuts()
+        // Keep the background alert check in step with the saved notification settings
+        com.example.airconapp.alerts.AlertMonitorWorker.sync(this, NetworkModule.getAlertSettings().any)
 
         // Schedule existing profiles
         lifecycleScope.launch {

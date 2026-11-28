@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.airconapp.di.NetworkModule
+import com.example.airconapp.alerts.AlertMonitorWorker
 import com.example.airconapp.domain.TemperatureUnit
 import com.example.airconapp.domain.ThemeMode
 import com.example.airconapp.ui.theme.ThemeSetting
@@ -47,6 +48,8 @@ class SettingsViewModelTest {
         mockkObject(ThemeSetting, WallPanel)
         every { ThemeSetting.set(any(), any()) } answers { NetworkModule.setThemeMode(secondArg()) }
         every { WallPanel.setHomeAppEnabled(any(), any()) } just Runs
+        mockkObject(AlertMonitorWorker.Companion)
+        every { AlertMonitorWorker.sync(any(), any()) } just Runs
         mockkStatic("androidx.lifecycle.ViewModelKt")
         every { any<ViewModel>().viewModelScope } returns settingsScope
         vm = SettingsViewModel(application)
@@ -75,7 +78,8 @@ class SettingsViewModelTest {
             { vm.setThemeMode(ThemeMode.DARK) }, { vm.setApiIp("http://192.168.1.7") },
             { vm.setUseMockMode(false) }, { vm.setSimpleModeEnabled(true) },
             { vm.setWallPanelEnabled(true) }, { vm.setSimpleModeZone("Bedroom") },
-            { vm.setSimpleModeStartTemperature(22) }
+            { vm.setSimpleModeStartTemperature(22) }, { vm.setOverrunAlert(true) },
+            { vm.setPowerChangeAlert(true) }, { vm.setModeChangeAlert(true) }
         )
         edits.forEach { edit ->
             edit()
@@ -106,5 +110,17 @@ class SettingsViewModelTest {
         assertEquals(TemperatureUnit.CELSIUS, savedUnit)
         assertFalse(savedSimple)
         assertTrue(vm.hasUnsavedChanges)
+    }
+
+    @Test fun `saving alerts persists them and starts the background check`() {
+        vm.setOverrunAlert(true)
+        vm.setModeChangeAlert(true)
+        vm.saveSettings()
+        val saved = NetworkModule.getAlertSettings()
+        assertTrue(saved.overrun)
+        assertFalse(saved.powerChange)
+        assertTrue(saved.modeChange)
+        assertFalse(vm.hasUnsavedChanges)
+        verify { AlertMonitorWorker.sync(any(), true) }
     }
 }

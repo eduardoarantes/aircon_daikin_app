@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status-bar icon for aircon alerts: the snowflake glyph, white on transparent as Android requires. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:pathData="M12 2.5v19" android:strokeColor="#FFFFFFFF" android:strokeWidth="2" android:strokeLineCap="round" />
+    <path android:pathData="M3.8 7.25l16.4 9.5" android:strokeColor="#FFFFFFFF" android:strokeWidth="2" android:strokeLineCap="round" />
+    <path android:pathData="M20.2 7.25l-16.4 9.5" android:strokeColor="#FFFFFFFF" android:strokeWidth="2" android:strokeLineCap="round" />
+    <path android:pathData="M9.3 4.3L12 7l2.7-2.7" android:strokeColor="#FFFFFFFF" android:strokeWidth="2" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M9.3 19.7L12 17l2.7 2.7" android:strokeColor="#FFFFFFFF" android:strokeWidth="2" android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>

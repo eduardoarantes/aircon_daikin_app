@@ -52,6 +52,15 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import com.example.airconapp.presentation.SettingsViewModel
 import com.example.airconapp.wallpanel.WallPanel
+import com.example.airconapp.alerts.AlertNotifier
+import com.example.airconapp.domain.AlertMonitor
+import com.example.airconapp.domain.AlertSettings
+import android.Manifest
+import android.content.Intent
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -146,6 +155,16 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
                     }
                 }
             }
+
+            HorizontalDivider()
+
+            val alertSettings by viewModel.alertSettings.collectAsState()
+            NotificationsSection(
+                settings = alertSettings,
+                onOverrunChange = viewModel::setOverrunAlert,
+                onPowerChange = viewModel::setPowerChangeAlert,
+                onModeChange = viewModel::setModeChangeAlert
+            )
 
             HorizontalDivider()
 
@@ -401,6 +420,100 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
         }
     }
 }
+/**
+ * Background alerts, like the Daikin app's notification settings. Switching one on asks for
+ * notification permission (Android 13+) if the app doesn't have it yet.
+ */
+@Composable
+private fun NotificationsSection(
+    settings: AlertSettings,
+    onOverrunChange: (Boolean) -> Unit,
+    onPowerChange: (Boolean) -> Unit,
+    onModeChange: (Boolean) -> Unit
+) {
+    val context = LocalContext.current
+    var canNotify by remember { mutableStateOf(AlertNotifier.canNotify(context)) }
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        canNotify = AlertNotifier.canNotify(context)
+    }
+    val enabling: ((Boolean) -> Unit) -> (Boolean) -> Unit = { set ->
+        { enabled ->
+            set(enabled)
+            canNotify = AlertNotifier.canNotify(context)
+            if (enabled && !canNotify && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Notifications", style = MaterialTheme.typography.titleMedium)
+        AlertSwitchRow(
+            title = "Overrun warning",
+            description = "Get a notification if the aircon has been running for over " +
+                "${AlertMonitor.OVERRUN_HOURS} hours.",
+            checked = settings.overrun,
+            onCheckedChange = enabling(onOverrunChange)
+        )
+        AlertSwitchRow(
+            title = "On/off monitoring",
+            description = "Get a notification if someone turns the aircon on or off.",
+            checked = settings.powerChange,
+            onCheckedChange = enabling(onPowerChange)
+        )
+        AlertSwitchRow(
+            title = "Mode-change monitoring",
+            description = "Get a notification if someone changes the operation mode.",
+            checked = settings.modeChange,
+            onCheckedChange = enabling(onModeChange)
+        )
+        Text(
+            "The aircon is checked about every 15 minutes while the phone is online, so alerts can " +
+                "arrive a little late. Changes made from this app don't trigger alerts.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (settings.any && !canNotify) {
+            Text(
+                "Notifications are blocked for this app, so alerts can't be shown.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+            OutlinedButton(
+                onClick = {
+                    context.startActivity(
+                        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Allow notifications")
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlertSwitchRow(title: String, description: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
 /** Theme is a draft until Save, consistent with the other settings. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

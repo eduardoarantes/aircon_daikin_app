@@ -18,6 +18,10 @@ import com.example.airconapp.data.remote.RemoteEnroller
 import com.example.airconapp.data.remote.RemoteFallbackApiService
 import com.example.airconapp.data.remote.TransportMode
 import com.example.airconapp.domain.SimpleModeLogic
+import com.example.airconapp.alerts.AlertStateStore
+import com.example.airconapp.alerts.OwnChangeRecordingApiService
+import com.example.airconapp.domain.AlertMonitor
+import com.example.airconapp.domain.AlertSettings
 import com.example.airconapp.domain.TemperatureUnit
 import kotlinx.coroutines.flow.asStateFlow
 import com.example.airconapp.domain.ThemeMode
@@ -56,6 +60,10 @@ object NetworkModule {
     private const val KEY_WALL_PANEL_ENABLED = "wall_panel_enabled"
     private const val KEY_ZONE_USAGE = "zone_usage"
     private const val KEY_TEMP_UNIT = "temperature_unit"
+    private const val KEY_ALERT_OVERRUN = "alert_overrun"
+    private const val KEY_ALERT_POWER = "alert_power_change"
+    private const val KEY_ALERT_MODE = "alert_mode_change"
+    private const val ALERT_STATE_PREFS_NAME = "aircon_alert_state"
     private val _temperatureUnit = MutableStateFlow(TemperatureUnit.CELSIUS)
     val temperatureUnit: StateFlow<TemperatureUnit> = _temperatureUnit.asStateFlow()
 
@@ -93,7 +101,17 @@ object NetworkModule {
         }
     }
 
-    private fun buildAirconApiService(): AirconApiService {
+    /** Every service records its own control changes, so they never raise alerts. */
+    private fun buildAirconApiService(): AirconApiService =
+        OwnChangeRecordingApiService(buildTransportApiService()) { sent ->
+            runCatching {
+                alertStateStore.update {
+                    AlertMonitor.recordOwnChange(it, sent.pow, sent.mode, System.currentTimeMillis()) to Unit
+                }
+            }
+        }
+
+    private fun buildTransportApiService(): AirconApiService {
         val useMockApi = sharedPreferences.getBoolean(KEY_USE_MOCK_API, true) // Default to mock
 
         if (useMockApi) return MockAirconApiService()
@@ -281,6 +299,31 @@ object NetworkModule {
     fun setTemperatureUnit(unit: TemperatureUnit) {
         sharedPreferences.edit().putString(KEY_TEMP_UNIT, unit.name).apply()
         _temperatureUnit.value = unit
+    }
+
+    // --- Background alerts (overrun, on/off and mode-change monitoring) ---
+
+    fun getAlertSettings(): AlertSettings = AlertSettings(
+        overrun = sharedPreferences.getBoolean(KEY_ALERT_OVERRUN, false),
+        powerChange = sharedPreferences.getBoolean(KEY_ALERT_POWER, false),
+        modeChange = sharedPreferences.getBoolean(KEY_ALERT_MODE, false)
+    )
+
+    /**
+     * Saves the alert switches. Turning alerts on from all-off forgets the last state seen, since
+     * nothing was watching in between and comparing against it could raise a stale alert.
+     */
+    fun setAlertSettings(settings: AlertSettings) {
+        if (!getAlertSettings().any && settings.any) alertStateStore.reset()
+        sharedPreferences.edit()
+            .putBoolean(KEY_ALERT_OVERRUN, settings.overrun)
+            .putBoolean(KEY_ALERT_POWER, settings.powerChange)
+            .putBoolean(KEY_ALERT_MODE, settings.modeChange)
+            .apply()
+    }
+
+    val alertStateStore: AlertStateStore by lazy {
+        AlertStateStore(_applicationContext.getSharedPreferences(ALERT_STATE_PREFS_NAME, Context.MODE_PRIVATE))
     }
 
     /** True when the app should behave as a wall panel rather than a normal app. */

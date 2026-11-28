@@ -9,6 +9,8 @@ import com.example.airconapp.di.NetworkModule
 import com.example.airconapp.data.discovery.DaikinDiscovery
 import com.example.airconapp.data.remote.EnrolResult
 import com.example.airconapp.domain.ThemeMode
+import com.example.airconapp.domain.AlertSettings
+import com.example.airconapp.alerts.AlertMonitorWorker
 import com.example.airconapp.ui.theme.ThemeSetting
 import com.example.airconapp.domain.TemperatureUnit
 import com.example.airconapp.domain.SimpleModeLogic
@@ -194,6 +196,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    // --- Notifications (background alerts) ---
+
+    private val _alertSettings = MutableStateFlow(NetworkModule.getAlertSettings())
+    val alertSettings: StateFlow<AlertSettings> = _alertSettings.asStateFlow()
+
+    fun setOverrunAlert(enabled: Boolean) { _alertSettings.value = _alertSettings.value.copy(overrun = enabled) }
+
+    fun setPowerChangeAlert(enabled: Boolean) { _alertSettings.value = _alertSettings.value.copy(powerChange = enabled) }
+
+    fun setModeChangeAlert(enabled: Boolean) { _alertSettings.value = _alertSettings.value.copy(modeChange = enabled) }
+
     fun setApiIp(ip: String) {
         _apiIp.value = ip
     }
@@ -211,7 +224,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             _simpleModeEnabled.value != NetworkModule.getSimpleModeEnabled() ||
             _wallPanelEnabled.value != NetworkModule.getWallPanelEnabled() ||
             _simpleModeZone.value != NetworkModule.getSimpleModeZone() ||
-            _simpleModeStartTemperature.value != NetworkModule.getSimpleModeStartTemperature()
+            _simpleModeStartTemperature.value != NetworkModule.getSimpleModeStartTemperature() ||
+            _alertSettings.value != NetworkModule.getAlertSettings()
 
     val canSaveSettings: Boolean
         get() = !_simpleModeEnabled.value || _simpleModeZone.value != null
@@ -225,6 +239,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _wallPanelEnabled.value = NetworkModule.getWallPanelEnabled()
         _simpleModeZone.value = NetworkModule.getSimpleModeZone()
         _simpleModeStartTemperature.value = NetworkModule.getSimpleModeStartTemperature()
+        _alertSettings.value = NetworkModule.getAlertSettings()
     }
 
     fun saveSettings() {
@@ -238,6 +253,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         NetworkModule.setSimpleModeZone(_simpleModeZone.value)
         NetworkModule.setSimpleModeStartTemperature(_simpleModeStartTemperature.value)
         WallPanel.setHomeAppEnabled(getApplication(), NetworkModule.isWallPanelActive())
+        NetworkModule.setAlertSettings(_alertSettings.value)
+        AlertMonitorWorker.sync(getApplication(), _alertSettings.value.any)
     }
 
     companion object {
