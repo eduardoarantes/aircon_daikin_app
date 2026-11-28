@@ -24,7 +24,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -83,7 +82,7 @@ fun accentFor(info: ControlInfo?): Color {
 private val NAV_LABEL_SIZE = 11.sp
 private val NAV_LABEL_MIN_SIZE = 7.sp
 
-private enum class HomeTab { Controls, Zones, Scenes, Schedules }
+enum class HomeTab { Controls, Zones, Scenes, Schedules }
 
 /**
  * The full (non-simple) app: Controls, Zones, Scenes and Schedules tabs. Adding or editing a
@@ -99,10 +98,12 @@ fun HomeScreen(
     onAddScene: () -> Unit,
     onEditScene: (Scene) -> Unit,
     onMoveSceneUp: (Scene) -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    /** Held by the caller so opening the app can return to Controls. */
+    tab: HomeTab,
+    onTabChange: (HomeTab) -> Unit
 ) {
-    var tab by rememberSaveable { mutableStateOf(HomeTab.Controls) }
-    BackHandler(enabled = tab != HomeTab.Controls) { tab = HomeTab.Controls }
+    BackHandler(enabled = tab != HomeTab.Controls) { onTabChange(HomeTab.Controls) }
     val temperatureUnit by viewModel.temperatureUnit.collectAsState()
     val schedules by schedulerViewModel.allProfiles.collectAsState()
 
@@ -128,7 +129,7 @@ fun HomeScreen(
             BottomNav(
                 selected = tab,
                 accent = navAccent,
-                onSelect = { tab = it },
+                onSelect = onTabChange,
                 onOpenSettings = onOpenSettings
             )
         }
@@ -136,8 +137,8 @@ fun HomeScreen(
         Column(modifier = Modifier.padding(padding)) {
             val tabModifier = Modifier.weight(1f)
             when (tab) {
-                HomeTab.Controls -> ControlsScreen(viewModel, accent, onOpenZones = { tab = HomeTab.Zones }, onOpenSettings = onOpenSettings, modifier = tabModifier)
-                HomeTab.Zones -> ZonesScreen(viewModel, accent, onOpenSchedules = { tab = HomeTab.Schedules }, onOpenSettings = onOpenSettings, modifier = tabModifier)
+                HomeTab.Controls -> ControlsScreen(viewModel, accent, onOpenZones = { onTabChange(HomeTab.Zones) }, onOpenSettings = onOpenSettings, modifier = tabModifier)
+                HomeTab.Zones -> ZonesScreen(viewModel, accent, onOpenSchedules = { onTabChange(HomeTab.Schedules) }, onOpenSettings = onOpenSettings, modifier = tabModifier)
                 HomeTab.Scenes -> ScenesScreen(
                     scenes = scenes,
                     temperatureUnit = temperatureUnit,

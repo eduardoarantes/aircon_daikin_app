@@ -52,6 +52,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import com.example.airconapp.presentation.SettingsViewModel
 import com.example.airconapp.wallpanel.WallPanel
+import com.example.airconapp.MainActivity
 import com.example.airconapp.alerts.AlertNotifier
 import com.example.airconapp.domain.AlertMonitor
 import com.example.airconapp.domain.AlertSettings
@@ -381,6 +382,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
                 OutlinedButton(
                     onClick = {
                         viewModel.saveSettings()
+                        MainActivity.returningFromSystemScreen = true
                         WallPanel.openHomeAppSettings(context)
                     },
                     enabled = simpleModeZone != null,
@@ -392,7 +394,10 @@ fun SettingsScreen(viewModel: SettingsViewModel, onNavigateBack: () -> Unit, onS
                 // Without Do Not Disturb access the panel mutes sounds but can't block everything
                 if (!WallPanel.hasSilencePermission(context)) {
                     OutlinedButton(
-                        onClick = { WallPanel.openSilencePermissionSettings(context) },
+                        onClick = {
+                            MainActivity.returningFromSystemScreen = true
+                            WallPanel.openSilencePermissionSettings(context)
+                        },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Allow silencing the phone")
@@ -481,6 +486,7 @@ private fun NotificationsSection(
             )
             OutlinedButton(
                 onClick = {
+                    MainActivity.returningFromSystemScreen = true
                     context.startActivity(
                         Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
                             .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)

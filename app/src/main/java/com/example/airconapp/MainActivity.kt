@@ -9,6 +9,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -23,6 +24,7 @@ import com.example.airconapp.presentation.SettingsViewModel
 import com.example.airconapp.ui.components.ConnectionErrorDialog
 import com.example.airconapp.ui.components.SimpleModeScreenContent
 import com.example.airconapp.ui.screens.HomeScreen
+import com.example.airconapp.ui.screens.HomeTab
 import com.example.airconapp.ui.screens.ScheduleEditScreen
 import com.example.airconapp.ui.screens.SceneEditScreen
 import com.example.airconapp.ui.screens.SettingsScreen
@@ -37,12 +39,33 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
-    /** Incremented on each Home press while this app is the home app. */
-    private val homePresses = kotlinx.coroutines.flow.MutableStateFlow(0)
+    /**
+     * Incremented each time the app is opened, so it shows the main screen (Controls tab) rather
+     * than wherever it was left: a fresh start, coming back from the background, a launcher or
+     * notification tap, or a Home press while this is the home app.
+     */
+    private val opens = kotlinx.coroutines.flow.MutableStateFlow(0)
+
+    /** Set while in the background, so the next start counts as opening the app. */
+    private var wasStopped = false
 
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
-        if (intent.hasCategory(android.content.Intent.CATEGORY_HOME)) homePresses.value++
+        opens.value++
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (wasStopped) {
+            wasStopped = false
+            // Back from a system screen Settings sent the user to: stay where they were
+            if (returningFromSystemScreen) returningFromSystemScreen = false else opens.value++
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations) wasStopped = true
     }
 
     /** The wall panel stays silent: the volume buttons do nothing while it is active. */
@@ -59,6 +82,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Android restores the last screen after the process was killed; a new process is a new open.
+        // Not on rotation or other recreation in the same process.
+        if (savedInstanceState != null && !createdInThisProcess) opens.value++
+        createdInThisProcess = true
         NetworkModule.initialize(applicationContext)
         ThemeSetting.load(applicationContext)
         WallPanel.setHomeAppEnabled(this, NetworkModule.isWallPanelActive())
@@ -99,10 +126,14 @@ class MainActivity : ComponentActivity() {
                         lifecycleOwner.lifecycle.addObserver(observer)
                         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
                     }
-                    // Home button on a wall panel always returns to the control screen
-                    val homePressCount by homePresses.collectAsState()
-                    androidx.compose.runtime.LaunchedEffect(homePressCount) {
-                        if (homePressCount > 0) navController.popBackStack("main_control", inclusive = false)
+                    // Opening the app always shows the main screen, on the Controls tab
+                    var homeTab by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(HomeTab.Controls) }
+                    val openCount by opens.collectAsState()
+                    androidx.compose.runtime.LaunchedEffect(openCount) {
+                        if (openCount > 0) {
+                            navController.popBackStack("main_control", inclusive = false)
+                            homeTab = HomeTab.Controls
+                        }
                     }
                     val temperatureUnit by mainViewModel.temperatureUnit.collectAsState()
                     NavHost(navController = navController, startDestination = "main_control") {
@@ -173,7 +204,9 @@ class MainActivity : ComponentActivity() {
                                     onAddScene = { navController.navigate("scene_edit/new") },
                                     onEditScene = { navController.navigate("scene_edit/${it.id}") },
                                     onMoveSceneUp = { NetworkModule.sceneRepository.moveUp(it) },
-                                    onOpenSettings = { navController.navigate("settings") }
+                                    onOpenSettings = { navController.navigate("settings") },
+                                    tab = homeTab,
+                                    onTabChange = { homeTab = it }
                                 )
                                 if (showConnectionErrorDialog) {
                                     ConnectionErrorDialog(
@@ -255,5 +288,16 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    companion object {
+        /** False until the first MainActivity of this process is created. */
+        private var createdInThisProcess = false
+
+        /**
+         * Set just before the app sends the user to a system screen they'll come back from (e.g.
+         * notification or home-app settings), so returning doesn't reset to the main screen.
+         */
+        @Volatile var returningFromSystemScreen = false
     }
 }
